@@ -25,10 +25,12 @@ public static class IssueCommands
     private static Command BuildCreateCommand(IServiceProvider services)
     {
         var create = new Command("create", "Create a Jira issue");
+        var projectArg = new Argument<string?>("project", () => null, "Project key (e.g. TEST)") { Arity = ArgumentArity.ZeroOrOne };
         var projectOpt = new Option<string?>("--project", "Project key (e.g. TEST)");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
         var typeOpt = new Option<string>("--type", () => "Task", "Issue type (e.g. Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
+        var descriptionAdfFileOpt = new Option<string?>("--description-adf-file", "Read description ADF JSON from file path");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
         var bodyOpt = new Option<string?>("--body", "Inline JSON payload matching Jira create-issue schema");
         var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
@@ -36,10 +38,12 @@ public static class IssueCommands
         var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        create.AddArgument(projectArg);
         create.AddOption(projectOpt);
         create.AddOption(summaryOpt);
         create.AddOption(typeOpt);
         create.AddOption(descriptionOpt);
+        create.AddOption(descriptionAdfFileOpt);
         create.AddOption(assigneeOpt);
         create.AddOption(bodyOpt);
         create.AddOption(bodyFileOpt);
@@ -65,21 +69,46 @@ public static class IssueCommands
                 return;
             }
 
-            var project = parseResult.GetValueForOption(projectOpt);
+            if (!TryResolveProjectKey(
+                    parseResult.GetValueForOption(projectOpt),
+                    parseResult.GetValueForArgument(projectArg),
+                    context,
+                    out var project))
+            {
+                return;
+            }
+
             var summary = parseResult.GetValueForOption(summaryOpt);
             var type = parseResult.GetValueForOption(typeOpt);
             var description = parseResult.GetValueForOption(descriptionOpt);
+            if (!TryResolveOptionalJsonObjectFile(
+                    parseResult.GetValueForOption(descriptionAdfFileOpt),
+                    "--description-adf-file",
+                    context,
+                    out var descriptionAdf))
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(description) && descriptionAdf.HasValue)
+            {
+                Console.Error.WriteLine("Use either --description or --description-adf-file, not both.");
+                context.ExitCode = 1;
+                return;
+            }
+
             var assignee = parseResult.GetValueForOption(assigneeOpt);
             if (resolvedBody is null)
             {
                 if (string.IsNullOrWhiteSpace(project) || string.IsNullOrWhiteSpace(summary))
                 {
-                    Console.Error.WriteLine("Either provide --body/--body-file, or provide both --project and --summary.");
+                    Console.Error.WriteLine("Either provide --body/--body-file, or provide project (<project> or --project) and --summary.");
                     context.ExitCode = 1;
                     return;
                 }
 
-                var fieldsDict = BuildFieldsDictionary(project, summary, type, description, assignee);
+                object? descriptionValue = descriptionAdf.HasValue ? descriptionAdf.Value : description;
+                var fieldsDict = BuildFieldsDictionary(project, summary, type, descriptionValue, assignee);
                 resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["fields"] = fieldsDict });
             }
 
@@ -109,7 +138,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -128,6 +157,8 @@ public static class IssueCommands
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
         var typeOpt = new Option<string?>("--type", "Issue type (e.g. Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
+        var fieldOpt = new Option<string?>("--field", "Field key to update when using --field-adf-file (e.g. description, customfield_123)");
+        var fieldAdfFileOpt = new Option<string?>("--field-adf-file", "Read field ADF JSON from file path");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
         var bodyOpt = new Option<string?>("--body", "Inline JSON payload matching Jira edit-issue schema");
         var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
@@ -144,6 +175,8 @@ public static class IssueCommands
         update.AddOption(summaryOpt);
         update.AddOption(typeOpt);
         update.AddOption(descriptionOpt);
+        update.AddOption(fieldOpt);
+        update.AddOption(fieldAdfFileOpt);
         update.AddOption(assigneeOpt);
         update.AddOption(bodyOpt);
         update.AddOption(bodyFileOpt);
@@ -174,6 +207,18 @@ public static class IssueCommands
                 return;
             }
 
+            if (!TryResolveNamedJsonObjectFile(
+                    parseResult.GetValueForOption(fieldOpt),
+                    parseResult.GetValueForOption(fieldAdfFileOpt),
+                    "--field",
+                    "--field-adf-file",
+                    context,
+                    out var adfFieldName,
+                    out var adfFieldValue))
+            {
+                return;
+            }
+
             if (resolvedBody is null)
             {
                 var fields = BuildFieldsDictionary(
@@ -183,9 +228,14 @@ public static class IssueCommands
                     parseResult.GetValueForOption(descriptionOpt),
                     parseResult.GetValueForOption(assigneeOpt));
 
+                if (!string.IsNullOrWhiteSpace(adfFieldName) && adfFieldValue.HasValue)
+                {
+                    fields[adfFieldName] = adfFieldValue.Value;
+                }
+
                 if (fields.Count == 0)
                 {
-                    Console.Error.WriteLine("Provide at least one field option or supply --body/--body-file.");
+                    Console.Error.WriteLine("Provide at least one field option, --field/--field-adf-file, or supply --body/--body-file.");
                     context.ExitCode = 1;
                     return;
                 }
@@ -218,7 +268,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -275,7 +325,7 @@ public static class IssueCommands
                 null,
                 false,
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -338,7 +388,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -400,7 +450,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -478,7 +528,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -498,6 +548,7 @@ public static class IssueCommands
         var textOpt = new Option<string?>("--text", "Comment text for add/update");
         var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
         var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
+        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
         var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
@@ -507,6 +558,7 @@ public static class IssueCommands
         comment.AddOption(textOpt);
         comment.AddOption(bodyOpt);
         comment.AddOption(bodyFileOpt);
+        comment.AddOption(bodyAdfFileOpt);
         comment.AddOption(expandOpt);
         comment.AddOption(rawOpt);
         comment.AddOption(failOnNonSuccessOpt);
@@ -534,6 +586,7 @@ public static class IssueCommands
                     parseResult.GetValueForOption(textOpt),
                     parseResult.GetValueForOption(bodyOpt),
                     parseResult.GetValueForOption(bodyFileOpt),
+                    parseResult.GetValueForOption(bodyAdfFileOpt),
                     context,
                     out var body))
             {
@@ -554,7 +607,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -579,6 +632,7 @@ public static class IssueCommands
         var textOpt = new Option<string?>("--text", "Comment text");
         var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
         var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
+        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
         var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
@@ -588,6 +642,7 @@ public static class IssueCommands
         add.AddOption(textOpt);
         add.AddOption(bodyOpt);
         add.AddOption(bodyFileOpt);
+        add.AddOption(bodyAdfFileOpt);
         add.AddOption(expandOpt);
         add.AddOption(rawOpt);
         add.AddOption(failOnNonSuccessOpt);
@@ -608,6 +663,7 @@ public static class IssueCommands
                     parseResult.GetValueForOption(textOpt),
                     parseResult.GetValueForOption(bodyOpt),
                     parseResult.GetValueForOption(bodyFileOpt),
+                    parseResult.GetValueForOption(bodyAdfFileOpt),
                     context,
                     out var resolvedBody))
             {
@@ -629,7 +685,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -708,7 +764,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -765,7 +821,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -786,6 +842,7 @@ public static class IssueCommands
         var textOpt = new Option<string?>("--text", "Comment text");
         var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
         var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
+        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
         var notifyUsersOpt = new Option<string?>("--notify-users", "Notify users (true|false)");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
@@ -798,6 +855,7 @@ public static class IssueCommands
         update.AddOption(textOpt);
         update.AddOption(bodyOpt);
         update.AddOption(bodyFileOpt);
+        update.AddOption(bodyAdfFileOpt);
         update.AddOption(notifyUsersOpt);
         update.AddOption(overrideEditableFlagOpt);
         update.AddOption(expandOpt);
@@ -820,6 +878,7 @@ public static class IssueCommands
                     parseResult.GetValueForOption(textOpt),
                     parseResult.GetValueForOption(bodyOpt),
                     parseResult.GetValueForOption(bodyFileOpt),
+                    parseResult.GetValueForOption(bodyAdfFileOpt),
                     context,
                     out var resolvedBody))
             {
@@ -850,7 +909,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -900,7 +959,7 @@ public static class IssueCommands
                 null,
                 false,
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -1008,7 +1067,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -1081,7 +1140,7 @@ public static class IssueCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -1211,7 +1270,115 @@ public static class IssueCommands
         return true;
     }
 
-    private static bool TryBuildCommentBody(string? text, string? body, string? bodyFile, InvocationContext context, out string? resolvedBody)
+    private static bool TryResolveProjectKey(string? projectOption, string? projectArgument, InvocationContext context, out string? project)
+    {
+        project = projectOption;
+        if (string.IsNullOrWhiteSpace(project))
+        {
+            project = projectArgument;
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectArgument)
+            && !project.Equals(projectArgument, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"Project mismatch: argument '{projectArgument}' does not match --project '{projectOption}'.");
+            context.ExitCode = 1;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryResolveOptionalJsonObjectFile(
+        string? filePath,
+        string optionName,
+        InvocationContext context,
+        out JsonElement? jsonObject)
+    {
+        jsonObject = null;
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return true;
+        }
+
+        if (!TryReadJsonObjectFile(filePath, optionName, context, out var parsed))
+        {
+            return false;
+        }
+
+        jsonObject = parsed;
+        return true;
+    }
+
+    private static bool TryResolveNamedJsonObjectFile(
+        string? name,
+        string? filePath,
+        string nameOptionName,
+        string fileOptionName,
+        InvocationContext context,
+        out string? resolvedName,
+        out JsonElement? jsonObject)
+    {
+        resolvedName = null;
+        jsonObject = null;
+
+        var hasName = !string.IsNullOrWhiteSpace(name);
+        var hasFile = !string.IsNullOrWhiteSpace(filePath);
+        if (!hasName && !hasFile)
+        {
+            return true;
+        }
+
+        if (!hasName || !hasFile)
+        {
+            Console.Error.WriteLine($"Use {nameOptionName} together with {fileOptionName}.");
+            context.ExitCode = 1;
+            return false;
+        }
+
+        resolvedName = name!.Trim();
+        if (!TryReadJsonObjectFile(filePath!, fileOptionName, context, out var parsed))
+        {
+            return false;
+        }
+
+        jsonObject = parsed;
+        return true;
+    }
+
+    private static bool TryReadJsonObjectFile(string filePath, string optionName, InvocationContext context, out JsonElement jsonObject)
+    {
+        jsonObject = default;
+        try
+        {
+            var text = File.ReadAllText(filePath);
+            using var doc = JsonDocument.Parse(text);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                Console.Error.WriteLine($"{optionName} file '{filePath}' must contain a JSON object.");
+                context.ExitCode = 1;
+                return false;
+            }
+
+            jsonObject = doc.RootElement.Clone();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to read {optionName} file '{filePath}': {ex.Message}");
+            context.ExitCode = 1;
+            return false;
+        }
+    }
+
+    private static bool TryBuildCommentBody(
+        string? text,
+        string? body,
+        string? bodyFile,
+        string? bodyAdfFile,
+        InvocationContext context,
+        out string? resolvedBody)
     {
         resolvedBody = null;
 
@@ -1220,9 +1387,21 @@ public static class IssueCommands
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(text) && explicitBody is not null)
+        if (!TryResolveOptionalJsonObjectFile(bodyAdfFile, "--body-adf-file", context, out var adfBody))
         {
-            Console.Error.WriteLine("Use either --text or --body/--body-file, not both.");
+            return false;
+        }
+
+        if (explicitBody is not null && adfBody.HasValue)
+        {
+            Console.Error.WriteLine("Use either --body/--body-file or --body-adf-file, not both.");
+            context.ExitCode = 1;
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(text) && (explicitBody is not null || adfBody.HasValue))
+        {
+            Console.Error.WriteLine("Use either --text or one of --body/--body-file/--body-adf-file, not both.");
             context.ExitCode = 1;
             return false;
         }
@@ -1233,14 +1412,20 @@ public static class IssueCommands
             return true;
         }
 
+        if (adfBody.HasValue)
+        {
+            resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["body"] = adfBody.Value });
+            return true;
+        }
+
         if (string.IsNullOrWhiteSpace(text))
         {
-            Console.Error.WriteLine("Provide --text or --body/--body-file.");
+            Console.Error.WriteLine("Provide --text, --body, --body-file, or --body-adf-file.");
             context.ExitCode = 1;
             return false;
         }
 
-        var adfBody = new Dictionary<string, object?>
+        var adfTextBody = new Dictionary<string, object?>
         {
             ["type"] = "doc",
             ["version"] = 1,
@@ -1261,7 +1446,7 @@ public static class IssueCommands
             }
         };
 
-        resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["body"] = adfBody });
+        resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["body"] = adfTextBody });
         return true;
     }
 
@@ -1285,7 +1470,7 @@ public static class IssueCommands
         string? project,
         string? summary,
         string? issueType,
-        string? description,
+        object? description,
         string? assignee)
     {
         var fields = new Dictionary<string, object?>();
@@ -1305,7 +1490,14 @@ public static class IssueCommands
             fields["issuetype"] = new Dictionary<string, string> { ["name"] = issueType };
         }
 
-        if (!string.IsNullOrWhiteSpace(description))
+        if (description is string descriptionText)
+        {
+            if (!string.IsNullOrWhiteSpace(descriptionText))
+            {
+                fields["description"] = descriptionText;
+            }
+        }
+        else if (description is not null)
         {
             fields["description"] = description;
         }

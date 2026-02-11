@@ -20,7 +20,8 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 - `--include-headers` prints response headers.
 - `--out` streams response body bytes to file (no full in-memory body buffering).
 - When `--out` is set, console output is status/header-focused plus a saved-file message.
-- `--fail-on-non-success` changes exit code to `1` for `4xx/5xx`.
+- Non-success HTTP responses (`4xx/5xx`) return exit code `1` by default.
+- `--fail-on-non-success false` allows non-success responses to return exit code `0`.
 
 ## Logging
 
@@ -30,8 +31,8 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 
 ## Exit Codes
 
-- `0`: command completed (including non-success HTTP responses when `--fail-on-non-success` is not set)
-- `1`: validation/runtime error, or HTTP `4xx/5xx` when `--fail-on-non-success` is set
+- `0`: command completed (including non-success HTTP responses only when `--fail-on-non-success false` is set)
+- `1`: validation/runtime error, or HTTP `4xx/5xx` by default
 
 ## Pagination (`--paginate`)
 
@@ -43,4 +44,5 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 ## Known implementation limits
 
 - `issue transition` uses transition name, not transition ID lookup.
-- `issue create` and `issue comment` send plain strings for description/body fields. Some Jira setups may require ADF objects.
+- `issue create`/`issue update` default to plain string description values unless you use `--description-adf-file` or `--field ... --field-adf-file`.
+- `issue comment` default text flow builds ADF automatically; `--body-adf-file` wraps raw ADF JSON under `body`.
