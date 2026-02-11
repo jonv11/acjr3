@@ -15,23 +15,31 @@ Convert unstructured text into a complete Jira issue with consistent fields and 
 
 ## Step-by-step
 
-1. Prepare a structured template in `create-issue.json`.
+1. Prepare the issue description in ADF (`create-issue-description.adf.json`).
 
 ```json
 {
-  "fields": {
-    "project": { "key": "ACJ" },
-    "issuetype": { "name": "Story" },
-    "summary": "Add retry-safe import endpoint",
-    "description": "Context:\n...\n\nGoal:\n...\n\nScope:\n...\n\nAcceptance Criteria:\n1. ...\n2. ...\n\nOut of scope:\n...\n\nRisks:\n..."
-  }
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Context: ..." }
+      ]
+    }
+  ]
 }
 ```
 
 2. Create the issue.
 
 ```bash
-acjr3 issue create --body-file create-issue.json --fail-on-non-success --raw
+acjr3 issue create ACJ \
+  --type Story \
+  --summary "Add retry-safe import endpoint" \
+  --description-adf-file create-issue-description.adf.json \
+  --fail-on-non-success --raw
 ```
 
 3. Enrich with planning fields (priority, points, fixVersion, custom fields).
@@ -49,10 +57,10 @@ acjr3 issuelink --type "Blocks" --inward "ACJ-456" --outward "ACJ-320" \
 
 Use `--body` or `--body-file` only when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
 
-5. Add follow-up open questions comment.
+5. Add follow-up open questions comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-456 --text "Open questions: 1) final timeout policy? 2) migration strategy? 3) rollout flag owner?"
+acjr3 issue comment ACJ-456 --body-adf-file open-questions-comment.adf.json
 ```
 
 6. Verify final issue state.

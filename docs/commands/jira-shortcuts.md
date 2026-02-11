@@ -4,6 +4,10 @@ Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Request C
 
 These commands are wrappers around fixed Jira REST API v3 paths.
 
+Preferred content style:
+- For issue descriptions and comments, prefer ADF-file flags (`--description-adf-file`, `--field ... --field-adf-file`, `--body-adf-file`) when the use case permits.
+- Use `--body` / `--body-file` for advanced payloads that include multiple fields or operations in one request.
+
 Default non-success behavior:
 - All shortcut commands fail with exit code `1` on HTTP `4xx/5xx` by default.
 - Set `--fail-on-non-success false` to allow non-success responses to return exit code `0`.
@@ -13,17 +17,17 @@ Default non-success behavior:
 ```bash
 acjr3 issuelink --type <LINK_TYPE> --inward <ISSUE_KEY> --outward <ISSUE_KEY> [--raw] [--fail-on-non-success] [--verbose]
 acjr3 issuelink --body <JSON> | --body-file <PATH> [--raw] [--fail-on-non-success] [--verbose]
-acjr3 issue create [<PROJECT>] [--project <KEY>] --summary <TEXT> [--type <TYPE>] [--description <TEXT> | --description-adf-file <PATH>] [--assignee <ACCOUNT_ID>] [--update-history true|false] [--raw] [--fail-on-non-success]
+acjr3 issue create [<PROJECT>] [--project <KEY>] --summary <TEXT> [--type <TYPE>] [--description-adf-file <PATH> | --description <TEXT>] [--assignee <ACCOUNT_ID>] [--update-history true|false] [--raw] [--fail-on-non-success]
 acjr3 issue create --body <JSON> | --body-file <PATH> [--raw] [--fail-on-non-success]
 acjr3 issue update <KEY> [--summary <TEXT>] [--description <TEXT>] [--assignee <ACCOUNT_ID>] [--type <TYPE>] [--project <KEY>] [--field <FIELD_KEY> --field-adf-file <PATH>] [--raw] [--fail-on-non-success]
 acjr3 issue update <KEY> --body <JSON> | --body-file <PATH> [--raw] [--fail-on-non-success]
 acjr3 issue delete <KEY> [--delete-subtasks true|false] [--fail-on-non-success]
 acjr3 issue view <KEY> [--fields <CSV>] [--fields-by-keys true|false] [--expand <CSV>] [--properties <CSV>] [--update-history true|false] [--fail-fast true|false] [--raw] [--fail-on-non-success] [--verbose]
-acjr3 issue comment <KEY> [--text <TEXT> | --body <JSON> | --body-file <PATH> | --body-adf-file <PATH>] [--raw] [--fail-on-non-success]
-acjr3 issue comment add <KEY> [--text <TEXT> | --body <JSON> | --body-file <PATH> | --body-adf-file <PATH>] [--expand <CSV>] [--raw] [--fail-on-non-success]
+acjr3 issue comment <KEY> [--body-adf-file <PATH> | --text <TEXT> | --body <JSON> | --body-file <PATH>] [--raw] [--fail-on-non-success]
+acjr3 issue comment add <KEY> [--body-adf-file <PATH> | --text <TEXT> | --body <JSON> | --body-file <PATH>] [--expand <CSV>] [--raw] [--fail-on-non-success]
 acjr3 issue comment list <KEY> [--start-at <N>] [--max-results <N>] [--order-by <TEXT>] [--expand <CSV>] [--raw] [--fail-on-non-success]
 acjr3 issue comment get <KEY> <COMMENT_ID> [--expand <CSV>] [--raw] [--fail-on-non-success]
-acjr3 issue comment update <KEY> <COMMENT_ID> [--text <TEXT> | --body <JSON> | --body-file <PATH> | --body-adf-file <PATH>] [--notify-users true|false] [--override-editable-flag true|false] [--expand <CSV>] [--raw] [--fail-on-non-success]
+acjr3 issue comment update <KEY> <COMMENT_ID> [--body-adf-file <PATH> | --text <TEXT> | --body <JSON> | --body-file <PATH>] [--notify-users true|false] [--override-editable-flag true|false] [--expand <CSV>] [--raw] [--fail-on-non-success]
 acjr3 issue comment delete <KEY> <COMMENT_ID> [--fail-on-non-success]
 acjr3 issue transition <KEY> [--body <JSON> | --body-file <PATH>] | [--id <TRANSITION_ID> | --to <TRANSITION_NAME>] [--raw] [--fail-on-non-success]
 acjr3 issue transition list <KEY> [--expand <CSV>] [--transition-id <ID>] [--skip-remote-only-condition true|false] [--include-unavailable-transitions true|false] [--sort-by-ops-bar-and-status true|false] [--raw] [--fail-on-non-success]
@@ -47,6 +51,7 @@ Notes:
 - `issue comment` supports both legacy add form (`issue comment <KEY> --text`) and CRUD subcommands.
 - `issue comment --text` generates Atlassian Document Format (ADF) comment payload automatically.
 - `issue comment ... --body-adf-file <PATH>` wraps the file JSON as `body`.
+- In docs/playbooks, `*-adf-file` variants are the default recommendation for description/comment content.
 - `issue transition --to` resolves transition name to ID from available transitions, then submits by ID.
 
 ## Search

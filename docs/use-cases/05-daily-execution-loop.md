@@ -37,17 +37,17 @@ acjr3 issue view ACJ-222 --fields "status,priority,duedate,issuelinks,subtasks" 
 acjr3 issue transition ACJ-222 --to "In Progress" --fail-on-non-success
 ```
 
-4. Post concise status.
+4. Post concise status (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-222 --text "Daily update: started implementation; next checkpoint today 16:00; no blockers yet."
+acjr3 issue comment ACJ-222 --body-adf-file daily-status-comment.adf.json
 ```
 
 5. If blocked, transition and escalate quickly.
 
 ```bash
 acjr3 issue transition ACJ-222 --to "Blocked" --fail-on-non-success
-acjr3 issue comment ACJ-222 --text "Blocked by ACJ-210 API contract decision. Need owner response."
+acjr3 issue comment ACJ-222 --body-adf-file blocked-escalation-comment.adf.json
 ```
 
 6. If your team tracks estimates, update field payload.

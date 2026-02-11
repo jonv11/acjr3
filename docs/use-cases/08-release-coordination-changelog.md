@@ -46,10 +46,10 @@ acjr3 search list \
 acjr3 issue update ACJ-501 --body-file set-fixversion.json --fail-on-non-success
 ```
 
-5. Generate per-ticket note summary as comments when required.
+5. Generate per-ticket note summary as comments when required (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-501 --text "Release notes draft: Adds retry-safe import API and structured error handling for 429/5xx."
+acjr3 issue comment ACJ-501 --body-adf-file release-notes-comment.adf.json
 ```
 
 6. Optional version management via generic request API.

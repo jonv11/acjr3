@@ -100,6 +100,9 @@ For each unchecked roadmap item:
 ### Item Log: Phase 1.1 `issue comment` CRUD coverage
 
 - Status: COMPLETE
+- Usage guidance:
+  - Prefer `--body-adf-file` for day-to-day comment authoring.
+  - `--text` remains supported and was validated for backward compatibility.
 - Test data setup:
   - Created dedicated project: `ACJRT` (`POST /rest/api/3/project`)
   - Created dedicated issue: `ACJRT-1`

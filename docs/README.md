@@ -49,4 +49,5 @@ Use this index to find small, task-focused docs.
 - Keep docs short.
 - Keep examples runnable.
 - Prefer linking over duplicating content.
+- Prefer ADF-file shortcuts (`--description-adf-file`, `--field-adf-file`, `--body-adf-file`) for Jira description/comment content when possible.
 - Keep docs aligned with current code in `src/acjr3`.

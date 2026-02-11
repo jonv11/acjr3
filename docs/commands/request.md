@@ -4,6 +4,11 @@ Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Jira Shor
 
 `request` is the main low-level command. It can call any Jira REST path.
 
+For issue description/comment content, prefer Jira shortcut ADF flags when possible:
+- `issue create --description-adf-file`
+- `issue update --field description --field-adf-file`
+- `issue comment ... --body-adf-file`
+
 ## Syntax
 
 ```bash

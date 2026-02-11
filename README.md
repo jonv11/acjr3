@@ -15,6 +15,16 @@ dotnet test acjr3.sln
 dotnet run --project src/acjr3 -- --help
 ```
 
+## Preferred Jira payload style
+
+For Jira issue descriptions and comments, prefer ADF-file options over raw JSON payload wrappers:
+
+- `acjr3 issue create <PROJECT> --summary "..." --description-adf-file <description.adf.json>`
+- `acjr3 issue update <KEY> --field description --field-adf-file <description.adf.json>`
+- `acjr3 issue comment add <KEY> --body-adf-file <comment.adf.json>`
+
+Use `--body` or `--body-file` when you need advanced/multi-field payloads that go beyond one description/comment content object.
+
 ## Navigation
 
 - Project docs hub: [docs/README.md](docs/README.md)

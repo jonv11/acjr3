@@ -59,10 +59,10 @@ acjr3 issue update ACJ-123 --body-file triage-update.json --fail-on-non-success
 }
 ```
 
-5. Post triage outcome comment.
+5. Post triage outcome comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-123 --text "Triage complete. Missing AC and repro details. Added needs-info. Next: requester to provide details by Friday."
+acjr3 issue comment ACJ-123 --body-adf-file triage-outcome-comment.adf.json
 ```
 
 6. Transition to the next workflow state.

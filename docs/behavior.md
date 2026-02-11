@@ -46,3 +46,4 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 - `issue transition` uses transition name, not transition ID lookup.
 - `issue create`/`issue update` default to plain string description values unless you use `--description-adf-file` or `--field ... --field-adf-file`.
 - `issue comment` default text flow builds ADF automatically; `--body-adf-file` wraps raw ADF JSON under `body`.
+- Preferred operator workflow is ADF-first for description/comment content (`*-adf-file` flags) because payload intent is clearer than raw wrapper JSON.

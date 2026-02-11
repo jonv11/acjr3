@@ -38,15 +38,16 @@ acjr3 issue comment list ACJ-789 --max-results 50 --raw
 - acceptance criteria testable
 - dependency list explicit
 
-4. Ask only missing questions.
+4. Ask only missing questions (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-789 --text "To mark Ready, please confirm: (1) non-goals, (2) expected timeout behavior, (3) rollout guard."
+acjr3 issue comment ACJ-789 --body-adf-file ready-questions-comment.adf.json
 ```
 
-5. Rewrite description and labels in one update.
+5. Rewrite description using ADF, then apply non-description fields.
 
 ```bash
+acjr3 issue update ACJ-789 --field description --field-adf-file ready-description.adf.json --fail-on-non-success
 acjr3 issue update ACJ-789 --body-file ready-update.json --fail-on-non-success
 ```
 

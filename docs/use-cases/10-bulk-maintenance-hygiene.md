@@ -49,10 +49,10 @@ acjr3 issue update ACJ-710 --body-file hygiene-update.json --fail-on-non-success
 acjr3 issue transition ACJ-710 --to "Needs Triage" --fail-on-non-success
 ```
 
-5. Add audit comments for every changed ticket.
+5. Add audit comments for every changed ticket (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-710 --text "Automation hygiene update: added missing labels and moved to Needs Triage per stale-ticket policy (30+ days inactive)."
+acjr3 issue comment ACJ-710 --body-adf-file hygiene-audit-comment.adf.json
 ```
 
 6. Verify a post-change sample.

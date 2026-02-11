@@ -23,6 +23,11 @@ Navigation: [Docs Home](../README.md) | [Repository Home](../../README.md) | [Us
 - `acjr3 role ...`
 - `acjr3 resolution ...`
 
+For issue description/comment content, prefer ADF-file options:
+- `--description-adf-file`
+- `--field <FIELD_KEY> --field-adf-file`
+- `--body-adf-file`
+
 ## Detailed pages
 
 - [Request command](request.md)

@@ -28,15 +28,16 @@ acjr3 issue comment list ACJ-620 --max-results 100 --raw
 - final accepted approach chosen
 - alternative options rejected with rationale
 
-3. Post structured decision summary comment.
+3. Post structured decision summary comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-620 --text "Decision: Use token-based pagination for search sync. Alternatives rejected: offset-only pagination due to consistency risk. Rationale: lower duplicate/skip probability under concurrent updates."
+acjr3 issue comment ACJ-620 --body-adf-file decision-summary-comment.adf.json
 ```
 
-4. Update canonical description and decision label.
+4. Update canonical description (ADF) and decision label.
 
 ```bash
+acjr3 issue update ACJ-620 --field description --field-adf-file decision-canonical-description.adf.json --fail-on-non-success
 acjr3 issue update ACJ-620 --body-file decision-captured-update.json --fail-on-non-success
 ```
 

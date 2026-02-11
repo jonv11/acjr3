@@ -37,10 +37,10 @@ acjr3 issue view ACJ-410 --fields "status,issuelinks,assignee,priority" --raw
 acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --fail-on-non-success
 ```
 
-4. Notify blocker owners.
+4. Notify blocker owners (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-410 --text "Blocker check: currently blocked by ACJ-350. Owner update requested for ETA."
+acjr3 issue comment ACJ-410 --body-adf-file blocker-owner-ping.adf.json
 ```
 
 5. Transition blocked/unblocked states when workflow supports it.

@@ -47,7 +47,7 @@ Acceptance checks:
 Acceptance checks:
 - add/list/get/update/delete comment commands exist
 - endpoints map to `/issue/{issueIdOrKey}/comment` and `/comment/{id}` forms
-- write commands support `--body` and `--body-file`
+- write commands support `--body`, `--body-file`, and `--body-adf-file`
 - docs and tests updated
 
 - [x] Expand `issue transition` coverage
@@ -101,6 +101,7 @@ Acceptance checks:
 - [x] Standardize write payload input across write shortcuts
 Acceptance checks:
 - all write shortcuts accept `--body` and `--body-file`
+- description/comment flows expose ADF-file variants where implemented (`--description-adf-file`, `--field-adf-file`, `--body-adf-file`)
 - validation and error messaging are consistent
 - docs and tests updated
 

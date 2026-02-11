@@ -33,16 +33,16 @@ acjr3 issue view ACJ-333 \
   --raw
 ```
 
-3. Apply bug template update (`Steps / Expected / Actual / Env / Regression`).
+3. Apply bug template update (`Steps / Expected / Actual / Env / Regression`) via ADF description.
 
 ```bash
-acjr3 issue update ACJ-333 --body-file bug-evidence-update.json --fail-on-non-success
+acjr3 issue update ACJ-333 --field description --field-adf-file bug-evidence-description.adf.json --fail-on-non-success
 ```
 
-4. Request missing artifacts and confirm repro.
+4. Request missing artifacts and confirm repro (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-333 --text "Repro confirmed on staging. Please attach full log bundle and timestamp for the failing request."
+acjr3 issue comment ACJ-333 --body-adf-file repro-request-comment.adf.json
 ```
 
 5. Add duplicate or causal link.
