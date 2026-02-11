@@ -1,5 +1,7 @@
 # Shell Completion
 
+Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Getting Started](../getting-started.md)
+
 `acjr3` uses System.CommandLine completion via the `suggest` directive.
 
 ## Manual completion query

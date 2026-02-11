@@ -1,5 +1,7 @@
 # 9. Knowledge Extraction: Decisions And Rationale
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](08-release-coordination-changelog.md) | [Next](10-bulk-maintenance-hygiene.md)
+
 ## Goal
 
 Compress long issue history into a canonical decision summary and connect it to documentation work.

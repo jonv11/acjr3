@@ -1,5 +1,7 @@
 # 2. Create High-quality Tickets From Chat Or Spec Fragments
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](01-ticket-triage-inbox-processing.md) | [Next](03-refine-ready-for-dev.md)
+
 ## Goal
 
 Convert unstructured text into a complete Jira issue with consistent fields and explicit acceptance criteria.

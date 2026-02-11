@@ -1,5 +1,7 @@
 # Commands
 
+Navigation: [Docs Home](../README.md) | [Repository Home](../../README.md) | [Use Cases](../use-cases/README.md)
+
 ## Core commands
 
 - `acjr3 request <METHOD> <PATH> [options]`: universal Jira REST proxy
@@ -22,9 +24,9 @@
 
 ## Detailed pages
 
-- `docs/commands/request.md`
-- `docs/commands/jira-shortcuts.md`
-- `docs/commands/openapi.md`
-- `docs/commands/completion.md`
-- `docs/commands/essential-coverage-priority.md`
-- `docs/commands/essential-coverage-testing-guide.md`
+- [Request command](request.md)
+- [Jira shortcuts](jira-shortcuts.md)
+- [OpenAPI helpers](openapi.md)
+- [Shell completion](completion.md)
+- [Essential coverage priority](essential-coverage-priority.md)
+- [Essential coverage testing guide](essential-coverage-testing-guide.md)

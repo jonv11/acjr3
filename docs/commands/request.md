@@ -1,5 +1,7 @@
 # Request Command
 
+Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Jira Shortcuts](jira-shortcuts.md)
+
 `request` is the main low-level command. It can call any Jira REST path.
 
 ## Syntax

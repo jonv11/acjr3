@@ -1,5 +1,7 @@
 # Use Case Playbooks
 
+Navigation: [Docs Home](../README.md) | [Commands](../commands/README.md) | [Repository Home](../../README.md)
+
 These playbooks show step-by-step ways to execute common Jira workflows with `acjr3`.
 
 Each file is one use case and follows the same pattern:
@@ -24,13 +26,13 @@ When changing workflow-sensitive fields (status, priority, assignee, sprint), ad
 
 ## Files
 
-1. `docs/use-cases/01-ticket-triage-inbox-processing.md`
-2. `docs/use-cases/02-create-high-quality-tickets.md`
-3. `docs/use-cases/03-refine-ready-for-dev.md`
-4. `docs/use-cases/04-sprint-planning-support.md`
-5. `docs/use-cases/05-daily-execution-loop.md`
-6. `docs/use-cases/06-incident-bug-repro-escalation.md`
-7. `docs/use-cases/07-dependency-blocker-management.md`
-8. `docs/use-cases/08-release-coordination-changelog.md`
-9. `docs/use-cases/09-knowledge-extraction-decisions.md`
-10. `docs/use-cases/10-bulk-maintenance-hygiene.md`
+1. [Ticket triage and inbox processing](01-ticket-triage-inbox-processing.md)
+2. [Create high-quality tickets from chat or spec fragments](02-create-high-quality-tickets.md)
+3. [Refine tickets to ready for dev](03-refine-ready-for-dev.md)
+4. [Sprint planning support](04-sprint-planning-support.md)
+5. [Daily execution loop](05-daily-execution-loop.md)
+6. [Incident or bug reproduction and escalation](06-incident-bug-repro-escalation.md)
+7. [Dependency and blocker management](07-dependency-blocker-management.md)
+8. [Release coordination and changelog generation](08-release-coordination-changelog.md)
+9. [Knowledge extraction: decisions and rationale](09-knowledge-extraction-decisions.md)
+10. [Bulk maintenance and hygiene](10-bulk-maintenance-hygiene.md)

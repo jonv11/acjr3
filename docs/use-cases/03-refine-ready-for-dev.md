@@ -1,5 +1,7 @@
 # 3. Refine Tickets To Ready For Dev
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](02-create-high-quality-tickets.md) | [Next](04-sprint-planning-support.md)
+
 ## Goal
 
 Turn a vague issue into an implementable ticket with clear scope, acceptance criteria, and dependencies.

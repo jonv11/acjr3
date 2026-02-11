@@ -1,5 +1,7 @@
 # 7. Dependency And Blocker Management
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](06-incident-bug-repro-escalation.md) | [Next](08-release-coordination-changelog.md)
+
 ## Goal
 
 Maintain an accurate dependency graph and keep blocker ownership visible.

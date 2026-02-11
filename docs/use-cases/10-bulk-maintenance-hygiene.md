@@ -1,5 +1,7 @@
 # 10. Bulk Maintenance And Hygiene
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](09-knowledge-extraction-decisions.md)
+
 ## Goal
 
 Apply deterministic consistency fixes at scale while preserving auditability and minimizing risk.

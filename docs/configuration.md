@@ -1,5 +1,7 @@
 # Configuration
 
+Navigation: [Docs Home](README.md) | [Getting Started](getting-started.md) | [Runtime Behavior](behavior.md)
+
 All configuration is read from environment variables.
 
 ## Required

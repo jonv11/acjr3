@@ -1,5 +1,7 @@
 # 6. Incident Or Bug Reproduction And Escalation
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](05-daily-execution-loop.md) | [Next](07-dependency-blocker-management.md)
+
 ## Goal
 
 Capture reproducible evidence quickly, update severity/impact consistently, and escalate when needed.

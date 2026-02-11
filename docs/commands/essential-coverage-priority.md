@@ -1,5 +1,7 @@
 # Essential Command Coverage Roadmap
 
+Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Coverage Testing Guide](essential-coverage-testing-guide.md)
+
 This file is the source of truth for progress toward essential Jira shortcut command coverage.
 
 How to use this roadmap:

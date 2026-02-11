@@ -1,5 +1,7 @@
 # Codebase Structure
 
+Navigation: [Docs Home](README.md) | [Getting Started](getting-started.md) | [Doc Conventions](doc-conventions.md)
+
 This layout is designed for growth with clear boundaries.
 
 ## Source (`src/acjr3`)

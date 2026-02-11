@@ -1,5 +1,7 @@
 # OpenAPI Commands
 
+Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Request Command](request.md)
+
 OpenAPI commands are optional helpers. They do not affect request execution.
 
 ## Syntax

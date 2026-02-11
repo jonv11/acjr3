@@ -1,5 +1,7 @@
 # 4. Sprint Planning Support
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](03-refine-ready-for-dev.md) | [Next](05-daily-execution-loop.md)
+
 ## Goal
 
 Assemble a candidate sprint set from ready issues, balanced by priority, risk, and size.

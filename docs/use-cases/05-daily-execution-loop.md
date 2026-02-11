@@ -1,5 +1,7 @@
 # 5. Daily Execution Loop
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](04-sprint-planning-support.md) | [Next](06-incident-bug-repro-escalation.md)
+
 ## Goal
 
 Generate a dependency-aware next-action list and keep Jira status/comments current.

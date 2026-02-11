@@ -1,5 +1,7 @@
 # 1. Ticket Triage And Inbox Processing
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Next](02-create-high-quality-tickets.md)
+
 ## Goal
 
 Scan new or updated issues, classify urgency, and move each item into a clear next state.

@@ -15,6 +15,13 @@ dotnet test acjr3.sln
 dotnet run --project src/acjr3 -- --help
 ```
 
+## Navigation
+
+- Project docs hub: [docs/README.md](docs/README.md)
+- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Command reference index: [docs/commands/README.md](docs/commands/README.md)
+- Use-case playbooks index: [docs/use-cases/README.md](docs/use-cases/README.md)
+
 ## Packaging
 
 Local single-file self-contained publish:
@@ -29,19 +36,26 @@ GitHub Actions:
 
 ## Documentation
 
-- Start here: `docs/README.md`
-- Contributor guide: `CONTRIBUTING.md`
-- Setup: `docs/getting-started.md`
-- Environment and auth: `docs/configuration.md`
-- Command map: `docs/commands/README.md`
-- Request command: `docs/commands/request.md`
-- Jira shortcut commands: `docs/commands/jira-shortcuts.md`
-- OpenAPI helpers: `docs/commands/openapi.md`
-- Shell completion: `docs/commands/completion.md`
-- Use-case playbooks: `docs/use-cases/README.md`
-- Codebase structure: `docs/codebase-structure.md`
-- Runtime behavior and known limits: `docs/behavior.md`
-- Doc writing conventions: `docs/doc-conventions.md`
+### Start Here
+
+- Documentation hub: [docs/README.md](docs/README.md)
+- Getting started: [docs/getting-started.md](docs/getting-started.md)
+- Configuration and auth: [docs/configuration.md](docs/configuration.md)
+
+### Commands
+
+- Command index: [docs/commands/README.md](docs/commands/README.md)
+- Universal request command: [docs/commands/request.md](docs/commands/request.md)
+- Jira shortcuts: [docs/commands/jira-shortcuts.md](docs/commands/jira-shortcuts.md)
+- OpenAPI helpers: [docs/commands/openapi.md](docs/commands/openapi.md)
+- Shell completion: [docs/commands/completion.md](docs/commands/completion.md)
+
+### Workflows And Internals
+
+- Use-case playbooks: [docs/use-cases/README.md](docs/use-cases/README.md)
+- Runtime behavior and limits: [docs/behavior.md](docs/behavior.md)
+- Codebase structure: [docs/codebase-structure.md](docs/codebase-structure.md)
+- Documentation conventions: [docs/doc-conventions.md](docs/doc-conventions.md)
 
 ## External reference
 

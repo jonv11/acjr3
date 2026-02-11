@@ -1,5 +1,7 @@
 # 8. Release Coordination And Changelog Generation
 
+Navigation: [Use Cases Index](README.md) | [Docs Home](../README.md) | [Commands](../commands/README.md) | [Previous](07-dependency-blocker-management.md) | [Next](09-knowledge-extraction-decisions.md)
+
 ## Goal
 
 Validate release readiness for a target version and build draft release notes.

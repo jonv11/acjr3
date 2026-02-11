@@ -1,5 +1,7 @@
 # Getting Started
 
+Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Commands](commands/README.md)
+
 ## Requirements
 
 - .NET 8 SDK

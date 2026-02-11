@@ -1,5 +1,7 @@
 # Documentation Conventions
 
+Navigation: [Docs Home](README.md) | [Repository Home](../README.md) | [Codebase Structure](codebase-structure.md)
+
 Use these rules when adding or editing docs in this repo.
 
 ## File structure
