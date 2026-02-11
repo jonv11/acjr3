@@ -44,7 +44,7 @@ public static class FieldCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);
@@ -129,7 +129,7 @@ public static class FieldCommands
                 null,
                 parseResult.GetValueForOption(rawOpt),
                 false,
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
                 false);

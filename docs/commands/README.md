@@ -16,6 +16,7 @@ Navigation: [Docs Home](../README.md) | [Repository Home](../../README.md) | [Us
 - `acjr3 status ...`
 - `acjr3 project ...`
 - `acjr3 issuetype ...`
+- `acjr3 issuelink ...`
 - `acjr3 user ...`
 - `acjr3 field ...`
 - `acjr3 group ...`

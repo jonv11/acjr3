@@ -11,7 +11,7 @@ Turn a vague issue into an implementable ticket with clear scope, acceptance cri
 - `acjr3 issue view`
 - `acjr3 issue comment`
 - `acjr3 issue update`
-- `acjr3 request` (for linking if needed)
+- `acjr3 issuelink`
 - `acjr3 issue transition`
 
 ## Step-by-step
@@ -50,10 +50,10 @@ acjr3 issue comment ACJ-789 --text "To mark Ready, please confirm: (1) non-goals
 acjr3 issue update ACJ-789 --body-file ready-update.json --fail-on-non-success
 ```
 
-6. Add or fix dependency links via request API when required.
+6. Add or fix dependency links when required.
 
 ```bash
-acjr3 request POST /rest/api/3/issueLink --body-file ready-links.json --fail-on-non-success
+acjr3 issuelink --type "Blocks" --inward "ACJ-789" --outward "ACJ-740" --fail-on-non-success
 ```
 
 7. Transition to ready status.

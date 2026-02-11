@@ -10,7 +10,7 @@ Convert unstructured text into a complete Jira issue with consistent fields and 
 
 - `acjr3 issue create`
 - `acjr3 issue update`
-- `acjr3 request` (for issue links)
+- `acjr3 issuelink`
 - `acjr3 issue comment`
 
 ## Step-by-step
@@ -40,23 +40,14 @@ acjr3 issue create --body-file create-issue.json --fail-on-non-success --raw
 acjr3 issue update ACJ-456 --body-file enrich-issue.json --fail-on-non-success
 ```
 
-4. Link dependencies (shortcut does not exist; use `request`).
+4. Link dependencies.
 
 ```bash
-acjr3 request POST /rest/api/3/issueLink \
-  --body-file link-blocks.json \
+acjr3 issuelink --type "Blocks" --inward "ACJ-456" --outward "ACJ-320" \
   --fail-on-non-success
 ```
 
-`link-blocks.json` example:
-
-```json
-{
-  "type": { "name": "Blocks" },
-  "inwardIssue": { "key": "ACJ-456" },
-  "outwardIssue": { "key": "ACJ-320" }
-}
-```
+Use `--body` or `--body-file` only when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
 
 5. Add follow-up open questions comment.
 
@@ -72,6 +63,5 @@ acjr3 issue view ACJ-456 --fields "summary,description,priority,labels,fixVersio
 
 ## Accuracy notes
 
-- `issue link` and `issue attach` shortcut commands are not currently implemented.
-- For linking, use `request` with `/rest/api/3/issueLink`.
+- `issue attach` shortcut command is not currently implemented.
 - For binary attachment upload, use Jira UI or another tool that supports multipart file upload.

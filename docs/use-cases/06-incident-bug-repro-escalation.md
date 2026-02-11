@@ -11,7 +11,7 @@ Capture reproducible evidence quickly, update severity/impact consistently, and 
 - `acjr3 issue view`
 - `acjr3 issue update`
 - `acjr3 issue comment`
-- `acjr3 request` (for links)
+- `acjr3 issuelink`
 - `acjr3 issue transition`
 
 ## Step-by-step
@@ -45,10 +45,10 @@ acjr3 issue update ACJ-333 --body-file bug-evidence-update.json --fail-on-non-su
 acjr3 issue comment ACJ-333 --text "Repro confirmed on staging. Please attach full log bundle and timestamp for the failing request."
 ```
 
-5. Add duplicate or causal link (via request API).
+5. Add duplicate or causal link.
 
 ```bash
-acjr3 request POST /rest/api/3/issueLink --body-file bug-link.json --fail-on-non-success
+acjr3 issuelink --type "Duplicate" --inward "ACJ-333" --outward "ACJ-289" --fail-on-non-success
 ```
 
 6. Escalate workflow state.

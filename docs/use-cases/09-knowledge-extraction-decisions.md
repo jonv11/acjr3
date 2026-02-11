@@ -12,7 +12,7 @@ Compress long issue history into a canonical decision summary and connect it to 
 - `acjr3 issue comment list`
 - `acjr3 issue comment`
 - `acjr3 issue update`
-- `acjr3 request` (for linking to doc task)
+- `acjr3 issuelink`
 
 ## Step-by-step
 
@@ -43,7 +43,7 @@ acjr3 issue update ACJ-620 --body-file decision-captured-update.json --fail-on-n
 5. Link documentation or ADR task (if required).
 
 ```bash
-acjr3 request POST /rest/api/3/issueLink --body-file decision-link-doc.json --fail-on-non-success
+acjr3 issuelink --type "Relates" --inward "ACJ-620" --outward "ACJ-621" --fail-on-non-success
 ```
 
 6. Verify final state.

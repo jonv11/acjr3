@@ -58,6 +58,7 @@ public static class Program
         root.AddCommand(StatusCommands.BuildStatusCommand(services));
         root.AddCommand(ProjectCommands.BuildProjectCommand(services));
         root.AddCommand(IssueTypeCommands.BuildIssueTypeCommand(services));
+        root.AddCommand(IssueLinkCommands.BuildIssueLinkCommand(services));
         root.AddCommand(UserCommands.BuildUserCommand(services));
         root.AddCommand(FieldCommands.BuildFieldCommand(services));
         root.AddCommand(GroupCommands.BuildGroupCommand(services));
@@ -243,7 +244,7 @@ public static class Program
                 parseResult.GetValueForOption(outOpt),
                 parseResult.GetValueForOption(rawOpt),
                 parseResult.GetValueForOption(includeHeadersOpt),
-                parseResult.GetValueForOption(failOnNonSuccessOpt),
+                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 parseResult.GetValueForOption(dryRunOpt),
                 parseResult.GetValueForOption(retryNonIdempotentOpt),
                 parseResult.GetValueForOption(paginateOpt));

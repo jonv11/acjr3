@@ -27,7 +27,7 @@ acjr3 request <METHOD> <PATH> [options]
 - `--out <path>` (streams raw response bytes to file)
 - `--raw` (skip JSON pretty print)
 - `--include-headers`
-- `--fail-on-non-success` (exit code `1` on `4xx/5xx`)
+- `--fail-on-non-success <true|false>` (default `true`; set `false` to allow `4xx/5xx` with exit code `0`)
 - `--dry-run` (print request details, do not send)
 - `--verbose` (diagnostics to stderr)
 - `--retry-non-idempotent` (enables retries for `POST` and `PATCH`)

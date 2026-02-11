@@ -10,7 +10,7 @@ Maintain an accurate dependency graph and keep blocker ownership visible.
 
 - `acjr3 search list`
 - `acjr3 issue view`
-- `acjr3 request` (create/remove issue links)
+- `acjr3 issuelink`
 - `acjr3 issue comment`
 - `acjr3 issue transition`
 
@@ -34,7 +34,7 @@ acjr3 issue view ACJ-410 --fields "status,issuelinks,assignee,priority" --raw
 3. Correct stale or missing links.
 
 ```bash
-acjr3 request POST /rest/api/3/issueLink --body-file blocker-link.json --fail-on-non-success
+acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --fail-on-non-success
 ```
 
 4. Notify blocker owners.
