@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE settings
+.vs/
+.vscode/
+.idea/
+
+# Test and coverage artifacts
+TestResults/
+*.coverage
+*.trx
+coverage/
+coverage-results/
+
+# Packaging/temp artifacts
+artifacts/
+dist/
+.tmp/
+
+# OS noise
+.DS_Store

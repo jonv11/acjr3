@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+    - master
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore
+      run: dotnet restore acjr3.sln
+
+    - name: Build (Release)
+      run: dotnet build acjr3.sln -c Release --no-restore
+
+    - name: Test (Release, no-build, coverage)
+      run: >
+        dotnet test acjr3.sln -c Release --no-build
+        --collect:"XPlat Code Coverage"
+        --results-directory ./TestResults
+        --logger "trx;LogFileName=test-results.trx"
+
+    - name: Install reportgenerator
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+    - name: Generate coverage report
+      run: >
+        reportgenerator
+        "-reports:TestResults/**/coverage.cobertura.xml"
+        "-targetdir:TestResults/CoverageReport"
+        "-reporttypes:HtmlInline;Cobertura;TextSummary"
+
+    - name: Publish test and coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-and-coverage-results
+        path: TestResults
+
+    - name: Coverage summary
+      run: cat TestResults/CoverageReport/Summary.txt >> $GITHUB_STEP_SUMMARY
