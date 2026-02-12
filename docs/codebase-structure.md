@@ -6,7 +6,7 @@ This layout is designed for growth with clear boundaries.
 
 ## Source (`src/acjr3`)
 
-- `App/`: application entrypoint and command wiring (`Program.cs`)
+- `App/`: application entrypoint (`Program.cs`) and root command wiring (`RootCommandFactory.cs`)
 - `Commands/`: CLI command groups
 - `Commands/Jira/`: Jira-focused command wrappers
 - `Configuration/`: environment config loading and validation
@@ -30,3 +30,12 @@ Tests mirror production domains:
 - Keep shared cross-domain helpers under `Common/`.
 - Mirror new source domains in tests.
 - Prefer many small files with focused responsibilities.
+
+## App Wiring Conventions
+
+- Keep `App/Program.cs` as composition-only orchestration.
+- Place root command assembly in `App/RootCommandFactory.cs`.
+- Place root/core command builders under `Commands/Core/`.
+- Place shared runtime wiring helpers in `App/` (`AppServiceProviderFactory`, runtime override handling, runtime config loader).
+- Place shared envelope/error helpers in `Common/`.
+- Keep top-level app wiring files within roughly 150-250 lines when practical.

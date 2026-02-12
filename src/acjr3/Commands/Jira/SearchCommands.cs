@@ -24,7 +24,6 @@ public static class SearchCommands
         var fieldsOpt = new Option<string?>("--fields", "Comma-separated fields to return");
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum results per page");
         var nextPageTokenOpt = new Option<string?>("--next-page-token", "Token for next page from previous search response");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
@@ -35,19 +34,15 @@ public static class SearchCommands
         list.AddOption(fieldsOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(nextPageTokenOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
                 return;
             }
+
             var project = parseResult.GetValueForOption(projectOpt);
             var status = parseResult.GetValueForOption(statusOpt);
             var assignee = parseResult.GetValueForOption(assigneeOpt);
@@ -59,12 +54,11 @@ public static class SearchCommands
             {
                 try
                 {
-                    jqlFromFile = File.ReadAllText(jqlFile!);
+                    jqlFromFile = TextFileInput.ReadAllTextNormalized(jqlFile!);
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Failed to read JQL file '{jqlFile}': {ex.Message}");
-                    context.ExitCode = 1;
+                    CliOutput.WriteValidationError(context, $"Failed to read JQL file '{jqlFile}': {ex.Message}");
                     return;
                 }
             }
@@ -84,8 +78,7 @@ public static class SearchCommands
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -112,8 +105,7 @@ public static class SearchCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -125,5 +117,9 @@ public static class SearchCommands
         return list;
     }
 }
+
+
+
+
 
 

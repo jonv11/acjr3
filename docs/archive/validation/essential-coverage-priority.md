@@ -1,6 +1,8 @@
 # Essential Command Coverage Roadmap
 
-Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Coverage Testing Guide](essential-coverage-testing-guide.md)
+Navigation: [Archive](../README.md) | [Validation Index](README.md) | [Coverage Testing Guide](essential-coverage-testing-guide.md)
+
+Historical note: This roadmap is archived context and not an operational source of truth.
 
 This file is the source of truth for progress toward essential Jira shortcut command coverage.
 
@@ -47,7 +49,7 @@ Acceptance checks:
 Acceptance checks:
 - add/list/get/update/delete comment commands exist
 - endpoints map to `/issue/{issueIdOrKey}/comment` and `/comment/{id}` forms
-- write commands support `--body`, `--body-file`, and `--body-adf-file`
+- write commands support canonical `--in <PATH|-> --input-format ... --yes|--force`
 - docs and tests updated
 
 - [x] Expand `issue transition` coverage
@@ -100,8 +102,9 @@ Acceptance checks:
 
 - [x] Standardize write payload input across write shortcuts
 Acceptance checks:
-- all write shortcuts accept `--body` and `--body-file`
-- description/comment flows expose ADF-file variants where implemented (`--description-adf-file`, `--field-adf-file`, `--body-adf-file`)
+- mutating write shortcuts accept canonical `--in <PATH|-> --input-format ...`
+- mutating write shortcuts require `--yes` or `--force`
+- description/comment flows expose field helpers where implemented (`--description-file <PATH> --description-format adf`, `--field-file <PATH> --field-format adf`)
 - validation and error messaging are consistent
 - docs and tests updated
 
@@ -119,7 +122,7 @@ Acceptance checks:
 
 - [x] Normalize output and failure controls
 Acceptance checks:
-- `--raw` behavior is consistent for shortcut commands
+- `--format json --compact` behavior is consistent for shortcut commands
 - fail-on-non-success behavior is consistent and documented
 - docs and tests updated
 
@@ -149,3 +152,4 @@ Acceptance checks:
 - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-fields/
 - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-groups/
 - https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-resolutions/
+

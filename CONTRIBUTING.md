@@ -10,6 +10,11 @@ Contributions must keep behavior predictable, docs accurate, and command structu
 3. Jira shortcut command/subcommand structure must reflect the REST v3 URI path.
 4. Prefer small, focused files and domain-based folder placement.
 
+## Automation Policies
+
+- CI enforces a minimum total line coverage of `60%`.
+- Dependabot opens weekly dependency update PRs for NuGet and GitHub Actions.
+
 ## Command Structure Rule (URI Mapping)
 
 Map from `/rest/api/3/...` to CLI as directly as possible:
@@ -45,7 +50,7 @@ Mirror source domains in tests.
 When adding/changing a command:
 
 1. Update implementation under `src/acjr3/Commands/...`.
-2. Register command in `src/acjr3/App/Program.cs` (if new root/group command).
+2. Register command in `src/acjr3/App/RootCommandFactory.cs` (if new root/group command).
 3. Update docs:
 - `docs/commands/jira-shortcuts.md` for Jira shortcut commands
 - `docs/commands/request.md` if universal request behavior changes

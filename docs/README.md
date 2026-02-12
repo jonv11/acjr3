@@ -8,6 +8,7 @@ Use this index to find small, task-focused docs.
 - Contributor guide: [../CONTRIBUTING.md](../CONTRIBUTING.md)
 - Commands index: [commands/README.md](commands/README.md)
 - Use-case playbooks index: [use-cases/README.md](use-cases/README.md)
+- Archive (historical context): [archive/README.md](archive/README.md)
 
 ## Quick Paths
 
@@ -18,6 +19,7 @@ Use this index to find small, task-focused docs.
 - Scenario playbooks: [use-cases/README.md](use-cases/README.md)
 - Understanding runtime behavior: [behavior.md](behavior.md)
 - Navigating source/tests: [codebase-structure.md](codebase-structure.md)
+- Historical context (non-operational): [archive/README.md](archive/README.md)
 
 ## By Topic
 
@@ -32,6 +34,7 @@ Use this index to find small, task-focused docs.
 - [commands/request.md](commands/request.md)
 - [commands/jira-shortcuts.md](commands/jira-shortcuts.md)
 - [commands/openapi.md](commands/openapi.md)
+- [commands/agent-capabilities.md](commands/agent-capabilities.md)
 - [commands/completion.md](commands/completion.md)
 
 ### Workflows
@@ -49,5 +52,5 @@ Use this index to find small, task-focused docs.
 - Keep docs short.
 - Keep examples runnable.
 - Prefer linking over duplicating content.
-- Prefer ADF-file shortcuts (`--description-adf-file`, `--field-adf-file`, `--body-adf-file`) for Jira description/comment content when possible.
+- Prefer canonical mutating input (`--in ... --input-format ... --yes|--force`) and use field-specific helpers (`--description-file ... --description-format adf`, `--field-file ... --field-format adf`) when appropriate.
 - Keep docs aligned with current code in `src/acjr3`.

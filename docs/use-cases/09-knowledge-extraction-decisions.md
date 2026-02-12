@@ -19,8 +19,8 @@ Compress long issue history into a canonical decision summary and connect it to 
 1. Pull issue with context and linked items.
 
 ```bash
-acjr3 issue view ACJ-620 --fields "summary,description,issuelinks,labels,status" --raw
-acjr3 issue comment list ACJ-620 --max-results 100 --raw
+acjr3 issue view ACJ-620 --fields "summary,description,issuelinks,labels,status" --compact
+acjr3 issue comment list ACJ-620 --max-results 100 --compact
 ```
 
 2. Detect decision signal.
@@ -31,24 +31,26 @@ acjr3 issue comment list ACJ-620 --max-results 100 --raw
 3. Post structured decision summary comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-620 --body-adf-file decision-summary-comment.adf.json
+acjr3 issue comment add ACJ-620 --in decision-summary-comment.adf.json --input-format adf --yes
 ```
 
 4. Update canonical description (ADF) and decision label.
 
 ```bash
-acjr3 issue update ACJ-620 --field description --field-adf-file decision-canonical-description.adf.json --fail-on-non-success
-acjr3 issue update ACJ-620 --body-file decision-captured-update.json --fail-on-non-success
+acjr3 issue update ACJ-620 --field description --field-file decision-canonical-description.adf.json --field-format adf --yes --fail-on-non-success
+acjr3 issue update ACJ-620 --in decision-captured-update.json --input-format json --yes --fail-on-non-success
 ```
 
 5. Link documentation or ADR task (if required).
 
 ```bash
-acjr3 issuelink --type "Relates" --inward "ACJ-620" --outward "ACJ-621" --fail-on-non-success
+acjr3 issuelink --type "Relates" --inward "ACJ-620" --outward "ACJ-621" --yes --fail-on-non-success
 ```
 
 6. Verify final state.
 
 ```bash
-acjr3 issue view ACJ-620 --fields "description,labels,issuelinks" --raw
+acjr3 issue view ACJ-620 --fields "description,labels,issuelinks" --compact
 ```
+
+

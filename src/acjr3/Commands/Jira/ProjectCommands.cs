@@ -33,7 +33,6 @@ public static class ProjectCommands
         var queryOpt = new Option<string?>("--query", "Filter versions by text");
         var statusOpt = new Option<string?>("--status", "Version status filter");
         var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
@@ -43,44 +42,37 @@ public static class ProjectCommands
         list.AddOption(queryOpt);
         list.AddOption(statusOpt);
         list.AddOption(expandOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
             var projectKey = parseResult.GetValueForOption(projectOpt);
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
-            AddQueryString(query, "query", parseResult.GetValueForOption(queryOpt));
-            AddQueryString(query, "status", parseResult.GetValueForOption(statusOpt));
-            AddQueryString(query, "expand", parseResult.GetValueForOption(expandOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
+            JiraQueryBuilder.AddString(query, "query", parseResult.GetValueForOption(queryOpt));
+            JiraQueryBuilder.AddString(query, "status", parseResult.GetValueForOption(statusOpt));
+            JiraQueryBuilder.AddString(query, "expand", parseResult.GetValueForOption(expandOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -91,8 +83,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -120,7 +111,6 @@ public static class ProjectCommands
         var statusOpt = new Option<string?>("--status", "Project status filter");
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated project properties");
         var propertyQueryOpt = new Option<string?>("--property-query", "Property query string");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(startAtOpt);
@@ -136,58 +126,50 @@ public static class ProjectCommands
         list.AddOption(statusOpt);
         list.AddOption(propertiesOpt);
         list.AddOption(propertyQueryOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
             var categoryId = parseResult.GetValueForOption(categoryIdOpt);
             if (categoryId.HasValue && categoryId.Value < 0)
             {
-                Console.Error.WriteLine("--category-id must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--category-id must be zero or greater.");
                 return;
             }
 
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
-            AddQueryString(query, "id", parseResult.GetValueForOption(idOpt));
-            AddQueryString(query, "keys", parseResult.GetValueForOption(keysOpt));
-            AddQueryString(query, "query", parseResult.GetValueForOption(queryOpt));
-            AddQueryString(query, "typeKey", parseResult.GetValueForOption(typeKeyOpt));
-            AddQueryInt(query, "categoryId", categoryId);
-            AddQueryString(query, "action", parseResult.GetValueForOption(actionOpt));
-            AddQueryString(query, "expand", parseResult.GetValueForOption(expandOpt));
-            AddQueryString(query, "status", parseResult.GetValueForOption(statusOpt));
-            AddQueryString(query, "properties", parseResult.GetValueForOption(propertiesOpt));
-            AddQueryString(query, "propertyQuery", parseResult.GetValueForOption(propertyQueryOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
+            JiraQueryBuilder.AddString(query, "id", parseResult.GetValueForOption(idOpt));
+            JiraQueryBuilder.AddString(query, "keys", parseResult.GetValueForOption(keysOpt));
+            JiraQueryBuilder.AddString(query, "query", parseResult.GetValueForOption(queryOpt));
+            JiraQueryBuilder.AddString(query, "typeKey", parseResult.GetValueForOption(typeKeyOpt));
+            JiraQueryBuilder.AddInt(query, "categoryId", categoryId);
+            JiraQueryBuilder.AddString(query, "action", parseResult.GetValueForOption(actionOpt));
+            JiraQueryBuilder.AddString(query, "expand", parseResult.GetValueForOption(expandOpt));
+            JiraQueryBuilder.AddString(query, "status", parseResult.GetValueForOption(statusOpt));
+            JiraQueryBuilder.AddString(query, "properties", parseResult.GetValueForOption(propertiesOpt));
+            JiraQueryBuilder.AddString(query, "propertyQuery", parseResult.GetValueForOption(propertyQueryOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -198,8 +180,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -210,23 +191,6 @@ public static class ProjectCommands
         });
         return list;
     }
-
-    private static void AddQueryString(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddQueryInt(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
-
     private static Command BuildComponentCommand(IServiceProvider services)
     {
         var component = new Command("component", "Component-related commands for a project");
@@ -238,21 +202,15 @@ public static class ProjectCommands
     {
         var list = new Command("list", "List all components for a project");
         var projectOpt = new Option<string>("--project", "Project key") { IsRequired = true };
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
                 return;
             }
             var projectKey = parseResult.GetValueForOption(projectOpt);
@@ -265,8 +223,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -278,5 +235,9 @@ public static class ProjectCommands
         return list;
     }
 }
+
+
+
+
 
 

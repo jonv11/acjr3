@@ -32,13 +32,15 @@ acjr3 config check
 
 ```bash
 acjr3 config show
-acjr3 config set <KEY> <VALUE> [--target process|user]
-acjr3 config init [options] [--target process|user]
+acjr3 config set <KEY> <VALUE> [--target process|user] (--yes|--force)
+acjr3 config init [options] [--target process|user] (--yes|--force)
 ```
 
 Notes:
 - `config set` supports known `ACJR3_*` keys only.
 - `config init` applies only provided values and leaves others unchanged.
+- Mutating `config` commands require `--yes` or `--force`.
+- `--target` defaults to `user`.
 - Use `--target process` for non-persistent shell/session testing.
 - `--target user` persistence behavior is OS/runtime dependent; use `--target process` for portable scripts/CI.
 
@@ -49,9 +51,11 @@ Notes:
 - Rotate Jira API tokens periodically and after any suspected exposure.
 - Use least-privilege accounts/tokens for automation where possible.
 
-## Per-invocation overrides
+## Per-invocation runtime overrides
 
-All commands accept runtime overrides that apply only to the current invocation:
+Runtime overrides apply to runtime/API commands (`request`, `openapi`, Jira shortcut commands, and agent commands), not to `config` commands.
+
+Supported override flags:
 - `--site-url`
 - `--auth-mode`
 - `--email`

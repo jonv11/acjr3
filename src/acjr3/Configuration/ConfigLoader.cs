@@ -1,31 +1,5 @@
 namespace Acjr3.Configuration;
 
-public enum AuthMode
-{
-    Basic,
-    Bearer,
-}
-
-public sealed record Acjr3Config(
-    Uri SiteUrl,
-    AuthMode AuthMode,
-    string? Email,
-    string? ApiToken,
-    string? BearerToken,
-    int TimeoutSeconds,
-    int MaxRetries,
-    int RetryBaseDelayMs);
-
-public interface IEnvironmentSource
-{
-    string? Get(string name);
-}
-
-public sealed class EnvironmentVariableSource : IEnvironmentSource
-{
-    public string? Get(string name) => Environment.GetEnvironmentVariable(name);
-}
-
 public sealed class ConfigLoader(IEnvironmentSource source)
 {
     public bool TryLoad(out Acjr3Config? config, out string error)
@@ -134,38 +108,3 @@ public sealed class ConfigLoader(IEnvironmentSource source)
         return true;
     }
 }
-
-public static class ConfigValidator
-{
-    public static bool TryValidateAuth(Acjr3Config config, out string error)
-    {
-        error = string.Empty;
-
-        if (config.AuthMode == AuthMode.Basic)
-        {
-            if (string.IsNullOrWhiteSpace(config.Email))
-            {
-                error = "ACJR3_EMAIL is required for basic auth.";
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(config.ApiToken))
-            {
-                error = "ACJR3_API_TOKEN is required for basic auth.";
-                return false;
-            }
-
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(config.BearerToken))
-        {
-            error = "ACJR3_BEARER_TOKEN is required for bearer auth.";
-            return false;
-        }
-
-        return true;
-    }
-}
-
-

@@ -22,32 +22,32 @@ Maintain an accurate dependency graph and keep blocker ownership visible.
 acjr3 search list \
   --jql "project = ACJ AND status = Blocked ORDER BY updated DESC" \
   --fields "key,summary,status,issuelinks,assignee" \
-  --max-results 100 --raw
+  --max-results 100 --compact
 ```
 
 2. Validate blocker links for each issue.
 
 ```bash
-acjr3 issue view ACJ-410 --fields "status,issuelinks,assignee,priority" --raw
+acjr3 issue view ACJ-410 --fields "status,issuelinks,assignee,priority" --compact
 ```
 
 3. Correct stale or missing links.
 
 ```bash
-acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --fail-on-non-success
+acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --yes --fail-on-non-success
 ```
 
 4. Notify blocker owners (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-410 --body-adf-file blocker-owner-ping.adf.json
+acjr3 issue comment add ACJ-410 --in blocker-owner-ping.adf.json --input-format adf --yes
 ```
 
 5. Transition blocked/unblocked states when workflow supports it.
 
 ```bash
-acjr3 issue transition ACJ-410 --to "Blocked" --fail-on-non-success
-acjr3 issue transition ACJ-410 --to "In Progress" --fail-on-non-success
+acjr3 issue transition ACJ-410 --to "Blocked" --yes --fail-on-non-success
+acjr3 issue transition ACJ-410 --to "In Progress" --yes --fail-on-non-success
 ```
 
 6. Re-run query for verification.
@@ -55,10 +55,12 @@ acjr3 issue transition ACJ-410 --to "In Progress" --fail-on-non-success
 ```bash
 acjr3 search list \
   --jql "project = ACJ AND status = Blocked" \
-  --fields "key,summary,issuelinks" --raw
+  --fields "key,summary,issuelinks" --compact
 ```
 
 ## Safety checks
 
 - Only update links when both issue keys are validated by `issue view`.
 - Add a comment whenever dependency links change.
+
+

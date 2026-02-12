@@ -1,8 +1,10 @@
 # Essential Coverage Testing Guide
 
-Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Coverage Roadmap](essential-coverage-priority.md)
+Navigation: [Archive](../README.md) | [Validation Index](README.md) | [Coverage Roadmap](essential-coverage-priority.md)
 
-This guide defines the manual validation workflow for `docs/commands/essential-coverage-priority.md` and serves as a handoff log.
+Historical note: This guide is archived context and not an operational source of truth.
+
+This guide defines the manual validation workflow for `essential-coverage-priority.md` and serves as a handoff log.
 
 ## Safety Rules
 
@@ -33,10 +35,7 @@ Primary approach:
 Create project (admin permission required) with universal request command:
 
 ```bash
-dotnet run --project src/acjr3 -- request POST /rest/api/3/project ^
-  --content-type application/json ^
-  --body "{\"key\":\"ACJR3T\",\"name\":\"acjr3 CLI Test Project\",\"projectTypeKey\":\"software\",\"projectTemplateKey\":\"com.pyxis.greenhopper.jira:gh-simplified-scrum-classic\",\"description\":\"Temporary project for acjr3 command coverage testing\",\"leadAccountId\":\"<ACCOUNT_ID>\"}" ^
-  --fail-on-non-success
+dotnet run --project src/acjr3 -- request POST /rest/api/3/project --in create-project.json --input-format json --yes --fail-on-non-success
 ```
 
 If project creation is not permitted:
@@ -73,47 +72,46 @@ For each unchecked roadmap item:
   - `dotnet test acjr3.sln` -> PASS
 - Manual validation:
   - `dotnet run --project src/acjr3 -- search list --help` -> PASS (shows `--max-results`, `--next-page-token`, `--fields`)
-  - `dotnet run --project src/acjr3 -- search list --project MFBC --max-results 5 --raw` -> PASS (`HTTP 200 OK`, active `/search/jql` behavior)
-  - `dotnet run --project src/acjr3 -- search list --max-results 5 --raw` -> EXPECTED API ERROR (`HTTP 400`, unbounded JQL not allowed without restriction)
+  - `dotnet run --project src/acjr3 -- search list --project MFBC --max-results 5 --format json --compact` -> PASS (`HTTP 200 OK`, active `/search/jql` behavior)
+  - `dotnet run --project src/acjr3 -- search list --max-results 5 --format json --compact` -> EXPECTED API ERROR (`HTTP 400`, unbounded JQL not allowed without restriction)
 
 ### Item Log: Phase 0.2 `project list` endpoint migration
 
 - Status: COMPLETE
 - Manual validation:
   - `dotnet run --project src/acjr3 -- project list --help` -> PASS (shows search filters and pagination options)
-  - `dotnet run --project src/acjr3 -- project list --max-results 5 --raw` -> PASS (`HTTP 200 OK`, paged values payload)
+  - `dotnet run --project src/acjr3 -- project list --max-results 5 --format json --compact` -> PASS (`HTTP 200 OK`, paged values payload)
 
 ### Item Log: Phase 0.3 `group list` endpoint migration
 
 - Status: COMPLETE
 - Manual validation:
   - `dotnet run --project src/acjr3 -- group list --help` -> PASS (shows bulk endpoint filter options)
-  - `dotnet run --project src/acjr3 -- group list --max-results 5 --raw` -> PASS (`HTTP 200 OK`, paged values payload)
+  - `dotnet run --project src/acjr3 -- group list --max-results 5 --format json --compact` -> PASS (`HTTP 200 OK`, paged values payload)
 
 ### Item Log: Phase 0.4 `resolution list` endpoint migration
 
 - Status: COMPLETE
 - Manual validation:
   - `dotnet run --project src/acjr3 -- resolution list --help` -> PASS (shows search/paging options)
-  - `dotnet run --project src/acjr3 -- resolution list --max-results 5 --raw` -> PASS (`HTTP 200 OK`, paged values payload)
+  - `dotnet run --project src/acjr3 -- resolution list --max-results 5 --format json --compact` -> PASS (`HTTP 200 OK`, paged values payload)
 
 ### Item Log: Phase 1.1 `issue comment` CRUD coverage
 
 - Status: COMPLETE
 - Usage guidance:
-  - Prefer `--body-adf-file` for day-to-day comment authoring.
+  - Prefer `--in <PATH> --input-format adf --yes` for day-to-day comment authoring.
   - `--text` remains supported and was validated for backward compatibility.
 - Test data setup:
   - Created dedicated project: `ACJRT` (`POST /rest/api/3/project`)
   - Created dedicated issue: `ACJRT-1`
 - Manual validation:
-  - `issue comment --help` -> PASS (legacy + CRUD subcommands visible)
+  - `issue comment --help` -> PASS (CRUD subcommands visible)
   - `issue comment add ACJRT-1 --text ...` -> PASS (`HTTP 201`, comment created)
   - `issue comment list ACJRT-1 --max-results 10` -> PASS (`HTTP 200`)
   - `issue comment get ACJRT-1 <id>` -> PASS (`HTTP 200`)
   - `issue comment update ACJRT-1 <id> --text ...` -> PASS (`HTTP 200`)
   - `issue comment delete ACJRT-1 <id>` -> PASS (`HTTP 204`)
-  - Legacy add form `issue comment ACJRT-1 --text ...` -> PASS (`HTTP 201`) then deleted (`HTTP 204`)
 
 ### Item Log: Phase 1.2 `issue transition` coverage
 
@@ -129,37 +127,37 @@ For each unchecked roadmap item:
 - Status: COMPLETE
 - Manual validation:
   - `issue view --help` -> PASS (shows `--fields-by-keys`, `--expand`, `--properties`, `--update-history`, `--fail-fast`)
-  - `issue view ACJRT-1 --fields summary,status --fields-by-keys false --expand names --properties '*' --update-history false --fail-fast true --raw` -> PASS (`HTTP 200`)
+  - `issue view ACJRT-1 --fields summary,status --fields-by-keys false --expand names --properties '*' --update-history false --fail-fast true --format json --compact` -> PASS (`HTTP 200`)
 
 ### Item Log: Phase 1.4 `project version list` paging parity
 
 - Status: COMPLETE
 - Manual validation:
   - `project version list --help` -> PASS (shows paging/filter options)
-  - `project version list --project ACJRT --max-results 10 --raw` -> PASS (`HTTP 200`, paged response shape)
+  - `project version list --project ACJRT --max-results 10 --format json --compact` -> PASS (`HTTP 200`, paged response shape)
 
 ### Item Log: Phase 1.5 `field search` shortcut
 
 - Status: COMPLETE
 - Manual validation:
   - `field search --help` -> PASS
-  - `field search --max-results 5 --query summary --raw` -> PASS (`HTTP 200`)
+  - `field search --max-results 5 --query summary --format json --compact` -> PASS (`HTTP 200`)
 
 ### Item Log: Phase 1.6 `user search` paging/filter parity
 
 - Status: COMPLETE
 - Manual validation:
   - `user search --help` -> PASS (shows `--start-at`, `--max-results`, `--account-id`, `--property`)
-  - `user search --account-id <current-account-id> --max-results 5 --raw` -> PASS (`HTTP 200`)
+  - `user search --account-id <current-account-id> --max-results 5 --format json --compact` -> PASS (`HTTP 200`)
 
 ### Item Log: Phase 2.1 metadata discovery commands
 
 - Status: COMPLETE
 - Manual validation:
   - `issue createmeta --help` -> PASS
-  - `issue createmeta --project-keys ACJRT --raw` -> PASS (`HTTP 200`)
+  - `issue createmeta --project-keys ACJRT --format json --compact` -> PASS (`HTTP 200`)
   - `issue editmeta --help` -> PASS
-  - `issue editmeta ACJRT-1 --raw` -> PASS (`HTTP 200`)
+  - `issue editmeta ACJRT-1 --format json --compact` -> PASS (`HTTP 200`)
 
 ### Item Log: Phase 2.2 config UX expansion
 
@@ -175,15 +173,15 @@ For each unchecked roadmap item:
 
 - Status: COMPLETE
 - Manual validation:
-  - `issue transition --help` shows `--body` and `--body-file`.
-  - `issue transition ACJRT-1 --body-file <transition-payload.json> --fail-on-non-success` -> PASS (`HTTP 204`)
+  - `issue transition --help` shows `--in` and `--input-format`.
+  - `issue transition ACJRT-1 --in <transition-payload.json> --input-format json --yes --fail-on-non-success` -> PASS (`HTTP 204`)
 
 ### Item Log: Phase 3.2 JQL file support
 
 - Status: COMPLETE
 - Manual validation:
   - `search list --help` shows `--jql-file`.
-  - `search list --jql-file <jql.txt> --jql "status = Done" --max-results 10 --raw --fail-on-non-success` -> PASS (`HTTP 200`)
+  - `search list --jql-file <jql.txt> --jql "status = Done" --max-results 10 --format json --compact --fail-on-non-success` -> PASS (`HTTP 200`)
 - Merge behavior:
   - `--jql-file` content, `--jql`, and shortcut filters are combined with `AND`.
 
@@ -199,7 +197,7 @@ For each unchecked roadmap item:
 - Status: COMPLETE
 - Manual validation:
   - `priority list --help` includes `--fail-on-non-success`.
-  - `search list --max-results 5 --raw --fail-on-non-success` returns `HTTP 400` and command exit code `1`.
+  - `search list --max-results 5 --format json --compact --fail-on-non-success` returns `HTTP 400` and command exit code `1`.
 
 ### Item Log: Phase 3.5 per-command config overrides
 
@@ -207,7 +205,7 @@ For each unchecked roadmap item:
 - Manual validation:
   - Global override options appear in command help output.
   - `--max-retries 1 config show` -> PASS (effective value reflects invocation override).
-  - `--site-url https://jonv11.atlassian.net priority list --raw --fail-on-non-success` -> PASS.
+  - `--site-url https://jonv11.atlassian.net priority list --format json --compact --fail-on-non-success` -> PASS.
 
 ## Test Project Manifest
 
@@ -220,3 +218,4 @@ For each unchecked roadmap item:
   - `ACJRT-1` exists as an audit artifact for this roadmap run
 - Cleanup guidance:
   - Safe cleanup can delete `ACJRT-1` and then delete project `ACJRT` if no longer needed.
+

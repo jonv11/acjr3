@@ -2,58 +2,61 @@
 
 Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Jira Shortcuts](jira-shortcuts.md)
 
-`request` is the main low-level command. It can call any Jira REST path.
-
-For issue description/comment content, prefer Jira shortcut ADF flags when possible:
-- `issue create --description-adf-file`
-- `issue update --field description --field-adf-file`
-- `issue comment ... --body-adf-file`
+`request` is the low-level universal Jira REST command.
 
 ## Syntax
 
 ```bash
 acjr3 request <METHOD> <PATH> [options]
+acjr3 request --replay <REQUEST_FILE> [options]
 ```
 
-`METHOD` must be one of: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`.
+`METHOD`: `GET|POST|PUT|DELETE|PATCH`
 
-`PATH` can be with or without leading slash, for example:
-- `/rest/api/3/myself`
-- `rest/api/3/myself`
+## Core Input Options
 
-## Options
-
+- `--in <PATH|->`: request payload source (`-` means stdin)
+- `--input-format json|adf|md|text`: payload format (default `json`)
+- `--body '<json-object>'`: inline JSON base payload
+- `--body-file <PATH>`: JSON base payload file
+- `--in`, `--body`, and `--body-file` are mutually exclusive
 - `--query key=value` (repeatable)
 - `--header key=value` (repeatable)
 - `--accept <mime>` (default `application/json`)
 - `--content-type <mime>`
-- `--body <string>`
-- `--body-file <path>` (mutually exclusive with `--body`)
-- `--out <path>` (streams raw response bytes to file)
-- `--raw` (skip JSON pretty print)
-- `--include-headers`
-- `--fail-on-non-success <true|false>` (default `true`; set `false` to allow `4xx/5xx` with exit code `0`)
-- `--dry-run` (print request details, do not send)
-- `--verbose` (diagnostics to stderr)
-- `--retry-non-idempotent` (enables retries for `POST` and `PATCH`)
-- `--paginate` (`GET` only, best effort for `values`-based response pages)
+- `--out <PATH>` (write response body to file)
+
+For mutating methods (`POST`, `PUT`, `PATCH`), if no explicit payload source is provided, `request` sends `{}` as the default JSON payload.
+
+## Output Options
+
+- `--format json|jsonl|text` (default `json`)
+- `--pretty` or `--compact`
+- `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, `--plain`
+
+Constraints:
+- `--plain` is only valid with text output when `--format` is explicitly set (for example, `--format text --plain`).
+- `--pretty` and `--compact` are mutually exclusive.
+- `--format text` cannot be combined with `--pretty` or `--compact`.
+
+## Execution / Safety Options
+
+- `--fail-on-non-success` (default `true`)
+- `--retry-non-idempotent`
+- `--paginate`
+- `--yes` or `--force` (required for mutating operations)
+- `--verbose`, `--debug`, `--trace`
+- `--explain` (show endpoint + payload without sending)
+- `--request-file <PATH>` (save replayable request artifact)
+- `--replay <PATH>` (execute saved request artifact)
 
 ## Examples
 
 ```bash
 acjr3 request GET /rest/api/3/myself
-acjr3 request GET /rest/api/3/search --query "jql=project = TEST" --query "maxResults=10"
-acjr3 request POST /rest/api/3/issue --body-file create-issue.json
-acjr3 request GET /rest/api/3/project --include-headers --raw
-acjr3 request GET /rest/api/3/project --paginate --raw
-acjr3 request GET /rest/api/3/attachment/content/10000 --out attachment.bin --include-headers
+acjr3 request POST /rest/api/3/issue --in create-issue.json --input-format json --yes
+acjr3 request POST /rest/api/3/issue --body '{"fields":{"project":{"key":"ACJ"},"summary":"Hello","issuetype":{"name":"Task"}}}' --yes
+acjr3 request GET /rest/api/3/search --query "jql=project = ACJ" --format jsonl --compact
+acjr3 request GET /rest/api/3/project --explain
+acjr3 request --replay .acjr3/request.json
 ```
-
-## Common workflows
-
-- Search and keep output compact:
-  - `acjr3 request GET /rest/api/3/search --query "jql=project = ACJR ORDER BY updated DESC" --query "maxResults=25" --raw`
-- Paginate list endpoints:
-  - `acjr3 request GET /rest/api/3/project/search --paginate --raw`
-- Export response data to disk safely:
-  - `acjr3 request GET /rest/api/3/project --out projects.json`
