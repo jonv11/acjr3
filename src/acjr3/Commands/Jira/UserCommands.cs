@@ -22,7 +22,6 @@ public static class UserCommands
         var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of users to return");
         var propertyOpt = new Option<string?>("--property", "User property query");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         search.AddOption(queryOpt);
@@ -31,7 +30,6 @@ public static class UserCommands
         search.AddOption(startAtOpt);
         search.AddOption(maxResultsOpt);
         search.AddOption(propertyOpt);
-        search.AddOption(rawOpt);
         search.AddOption(failOnNonSuccessOpt);
         search.AddOption(verboseOpt);
         search.SetHandler(async (InvocationContext context) =>
@@ -40,24 +38,26 @@ public static class UserCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -69,8 +69,7 @@ public static class UserCommands
                 && string.IsNullOrWhiteSpace(username)
                 && string.IsNullOrWhiteSpace(accountId))
             {
-                Console.Error.WriteLine("Provide at least one of --query, --username, or --account-id.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "Provide at least one of --query, --username, or --account-id.");
                 return;
             }
 
@@ -90,8 +89,7 @@ public static class UserCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -119,5 +117,8 @@ public static class UserCommands
         }
     }
 }
+
+
+
 
 

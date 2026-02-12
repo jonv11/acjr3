@@ -17,10 +17,8 @@ public static class FieldCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira fields");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -29,10 +27,15 @@ public static class FieldCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
                 return;
             }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
+                return;
+            }
+
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
                 "/rest/api/3/field",
@@ -42,8 +45,7 @@ public static class FieldCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -66,7 +68,6 @@ public static class FieldCommands
         var orderByOpt = new Option<string?>("--order-by", "Order by expression");
         var expandOpt = new Option<string?>("--expand", "Expand related entities");
         var projectIdsOpt = new Option<string?>("--project-ids", "Comma-separated project IDs for project-scoped field search");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         search.AddOption(startAtOpt);
@@ -77,7 +78,6 @@ public static class FieldCommands
         search.AddOption(orderByOpt);
         search.AddOption(expandOpt);
         search.AddOption(projectIdsOpt);
-        search.AddOption(rawOpt);
         search.AddOption(failOnNonSuccessOpt);
         search.AddOption(verboseOpt);
 
@@ -87,24 +87,26 @@ public static class FieldCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -127,8 +129,7 @@ public static class FieldCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -157,5 +158,8 @@ public static class FieldCommands
         }
     }
 }
+
+
+
 
 

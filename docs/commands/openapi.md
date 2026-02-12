@@ -8,7 +8,7 @@ OpenAPI commands are optional helpers. They do not affect request execution.
 
 ```bash
 acjr3 openapi fetch [--out <PATH>] [--spec-url <URL>]
-acjr3 openapi paths [--filter <TEXT>] [--spec-file <PATH>]
+acjr3 openapi paths [--path-filter <TEXT>] [--spec-file <PATH>]
 acjr3 openapi show <METHOD> <PATH> [--spec-file <PATH>]
 ```
 

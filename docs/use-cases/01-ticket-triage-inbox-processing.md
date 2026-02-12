@@ -23,7 +23,7 @@ acjr3 search list \
   --jql "project = ACJ AND updated >= -1d AND status not in (Done, Closed) ORDER BY updated DESC" \
   --fields "key,summary,priority,status,assignee,labels,updated" \
   --max-results 50 \
-  --raw
+  --compact
 ```
 
 2. Open one issue with details needed for triage.
@@ -32,7 +32,7 @@ acjr3 search list \
 acjr3 issue view ACJ-123 \
   --fields "summary,description,priority,labels,components,duedate,assignee,issuelinks" \
   --expand "renderedFields" \
-  --raw
+  --compact
 ```
 
 3. Apply a deterministic triage rubric.
@@ -44,7 +44,7 @@ acjr3 issue view ACJ-123 \
 4. Update fields in one controlled change.
 
 ```bash
-acjr3 issue update ACJ-123 --body-file triage-update.json --fail-on-non-success
+acjr3 issue update ACJ-123 --in triage-update.json --input-format json --yes --fail-on-non-success
 ```
 
 `triage-update.json` example:
@@ -62,19 +62,19 @@ acjr3 issue update ACJ-123 --body-file triage-update.json --fail-on-non-success
 5. Post triage outcome comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-123 --body-adf-file triage-outcome-comment.adf.json
+acjr3 issue comment add ACJ-123 --in triage-outcome-comment.adf.json --input-format adf --yes
 ```
 
 6. Transition to the next workflow state.
 
 ```bash
-acjr3 issue transition ACJ-123 --to "Needs Triage" --fail-on-non-success
+acjr3 issue transition ACJ-123 --to "Needs Triage" --yes --fail-on-non-success
 ```
 
 7. Verify state and fields.
 
 ```bash
-acjr3 issue view ACJ-123 --fields "status,priority,labels,duedate" --raw
+acjr3 issue view ACJ-123 --fields "status,priority,labels,duedate" --compact
 ```
 
 ## Safety checks
@@ -82,3 +82,5 @@ acjr3 issue view ACJ-123 --fields "status,priority,labels,duedate" --raw
 - Use constrained JQL (project + updated window + status).
 - Keep field updates in a JSON file for review.
 - Always add an audit comment when changing status or priority.
+
+

@@ -38,38 +38,42 @@ Convert unstructured text into a complete Jira issue with consistent fields and 
 acjr3 issue create ACJ \
   --type Story \
   --summary "Add retry-safe import endpoint" \
-  --description-adf-file create-issue-description.adf.json \
-  --fail-on-non-success --raw
+  --description-file create-issue-description.adf.json --description-format adf \
+  --yes \
+  --fail-on-non-success --compact
 ```
 
 3. Enrich with planning fields (priority, points, fixVersion, custom fields).
 
 ```bash
-acjr3 issue update ACJ-456 --body-file enrich-issue.json --fail-on-non-success
+acjr3 issue update ACJ-456 --in enrich-issue.json --input-format json --yes --fail-on-non-success
 ```
 
 4. Link dependencies.
 
 ```bash
 acjr3 issuelink --type "Blocks" --inward "ACJ-456" --outward "ACJ-320" \
+  --yes \
   --fail-on-non-success
 ```
 
-Use `--body` or `--body-file` only when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
+Use `--in <PATH> --input-format json` when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
 
 5. Add follow-up open questions comment (ADF-first).
 
 ```bash
-acjr3 issue comment ACJ-456 --body-adf-file open-questions-comment.adf.json
+acjr3 issue comment add ACJ-456 --in open-questions-comment.adf.json --input-format adf --yes
 ```
 
 6. Verify final issue state.
 
 ```bash
-acjr3 issue view ACJ-456 --fields "summary,description,priority,labels,fixVersions" --raw
+acjr3 issue view ACJ-456 --fields "summary,description,priority,labels,fixVersions" --compact
 ```
 
 ## Accuracy notes
 
 - `issue attach` shortcut command is not currently implemented.
 - For binary attachment upload, use Jira UI or another tool that supports multipart file upload.
+
+

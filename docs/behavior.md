@@ -2,48 +2,71 @@
 
 Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Commands](commands/README.md)
 
+## Output Model
+
+- Default output is a JSON envelope:
+  - `success`
+  - `data`
+  - `error { code, message, details, hint }`
+  - `meta { version, requestId, durationMs, statusCode, method, path }`
+- Output format is controlled with `--format json|jsonl|text` (default `json`).
+- JSON style is controlled with `--pretty` or `--compact`.
+- Output shaping flags:
+  - `--select`
+  - `--filter`
+  - `--sort`
+  - `--limit`
+  - `--cursor`
+  - `--page`
+  - `--all`
+  - `--plain`
+- Payload is emitted on `stdout`. Diagnostics remain on `stderr`.
+
+## Exit Codes
+
+- `0`: success
+- `1`: validation / bad arguments
+- `2`: authentication / authorization
+- `3`: not found
+- `4`: conflict / business rule failure
+- `5`: network / timeout
+- `10+`: internal / tool-specific
+
+## Request Input
+
+- Canonical payload input is `--in <file|->`.
+- Canonical payload format is `--input-format json|adf|md|text`.
+- Optional JSON base payload inputs are:
+  - `--body '<json-object>'`
+  - `--body-file <path>`
+- `--in`, `--body`, and `--body-file` are mutually exclusive.
+- Text payload reads are BOM-normalized.
+
+## JSON Payload Pipeline (Write Commands)
+
+For JSON write commands (`request` mutating methods, `issue create/update/transition`, `issue comment add/update`, `issuelink`), payload processing is deterministic:
+
+1. Initialize an in-memory default payload object.
+2. If one explicit base source is provided (`--body`, `--body-file`, or `--in`), replace the default base.
+3. Apply command-specific sugar flags (for example `--summary`, `--id`, `--text`) as patches on top of the base.
+4. Validate final required fields for the command.
+5. Serialize and send the final JSON payload.
+
+When no explicit base is provided:
+- `request` with `POST|PUT|PATCH` defaults to `{}`.
+- Shortcut commands use endpoint-specific default payload shapes.
+
+## Safety
+
+- Mutating operations require `--yes` or `--force` (for example `request`, `issue create/update/delete`, `issue comment add/update/delete`, `issue transition`, and `issuelink`).
+- `--explain` prints endpoint/payload without executing.
+- `--request-file` writes a replayable request artifact.
+- `--replay <file>` executes a saved request artifact.
+
 ## Retries
 
 - Retries on HTTP `429`.
 - Retries on HTTP `5xx`.
-- Retries on `HttpRequestException`.
-- Retries on `TaskCanceledException`.
+- Retries on `HttpRequestException` and `TaskCanceledException`.
 - Idempotent methods are retried by default: `GET`, `PUT`, `DELETE`.
 - `POST` and `PATCH` retries require `--retry-non-idempotent`.
-- Retry delay uses `Retry-After` on `429` when available.
-- Otherwise it uses exponential backoff with jitter (30s cap).
-
-## Output
-
-- Normal output always starts with `HTTP <code> <reason>`.
-- JSON is pretty-printed unless `--raw` is set.
-- `--include-headers` prints response headers.
-- `--out` streams response body bytes to file (no full in-memory body buffering).
-- When `--out` is set, console output is status/header-focused plus a saved-file message.
-- Non-success HTTP responses (`4xx/5xx`) return exit code `1` by default.
-- `--fail-on-non-success false` allows non-success responses to return exit code `0`.
-
-## Logging
-
-- Runtime logging uses `Microsoft.Extensions.Logging`.
-- `--verbose` enables acjr3 debug-level diagnostics (retry attempts, backoff timing, config load diagnostics).
-- Non-verbose runs keep logging quiet except explicit command output/errors.
-
-## Exit Codes
-
-- `0`: command completed (including non-success HTTP responses only when `--fail-on-non-success false` is set)
-- `1`: validation/runtime error, or HTTP `4xx/5xx` by default
-
-## Pagination (`--paginate`)
-
-- Only allowed on `GET`.
-- Expects responses containing a top-level `values` array.
-- Uses `startAt`, `maxResults`, `isLast`, and `total` when available.
-- If structure is not recognized, it falls back to a single request.
-
-## Known implementation limits
-
-- `issue transition` uses transition name, not transition ID lookup.
-- `issue create`/`issue update` default to plain string description values unless you use `--description-adf-file` or `--field ... --field-adf-file`.
-- `issue comment` default text flow builds ADF automatically; `--body-adf-file` wraps raw ADF JSON under `body`.
-- Preferred operator workflow is ADF-first for description/comment content (`*-adf-file` flags) because payload intent is clearer than raw wrapper JSON.

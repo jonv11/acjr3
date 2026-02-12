@@ -22,13 +22,13 @@ Assemble a candidate sprint set from ready issues, balanced by priority, risk, a
 acjr3 search list \
   --jql "project = ACJ AND status = Ready ORDER BY priority DESC, Rank ASC" \
   --fields "key,summary,priority,labels,issuelinks" \
-  --max-results 100 --raw
+  --max-results 100 --compact
 ```
 
 2. Review top candidates for blockers and size signals.
 
 ```bash
-acjr3 issue view ACJ-101 --fields "summary,priority,labels,issuelinks,customfield_10016" --raw
+acjr3 issue view ACJ-101 --fields "summary,priority,labels,issuelinks,customfield_10016" --compact
 ```
 
 3. Select a balanced proposal.
@@ -39,13 +39,13 @@ acjr3 issue view ACJ-101 --fields "summary,priority,labels,issuelinks,customfiel
 4. Set sprint/assignee/points after approval.
 
 ```bash
-acjr3 issue update ACJ-101 --body-file sprint-assign.json --fail-on-non-success
+acjr3 issue update ACJ-101 --in sprint-assign.json --input-format json --yes --fail-on-non-success
 ```
 
 5. Transition to development intake state.
 
 ```bash
-acjr3 issue transition ACJ-101 --to "Selected for Development" --fail-on-non-success
+acjr3 issue transition ACJ-101 --to "Selected for Development" --yes --fail-on-non-success
 ```
 
 6. Verify set.
@@ -53,10 +53,12 @@ acjr3 issue transition ACJ-101 --to "Selected for Development" --fail-on-non-suc
 ```bash
 acjr3 search list \
   --jql "project = ACJ AND status = \"Selected for Development\" AND sprint = 1234" \
-  --fields "key,summary,assignee,priority" --raw
+  --fields "key,summary,assignee,priority" --compact
 ```
 
 ## Accuracy notes
 
 - `board` and `sprint` shortcut commands are not currently implemented.
-- Use issue fields and JQL for sprint planning; use `issue update --body-file` for sprint custom-field assignment.
+- Use issue fields and JQL for sprint planning; use `issue update --in <payload.json> --input-format json --yes` for sprint custom-field assignment.
+
+

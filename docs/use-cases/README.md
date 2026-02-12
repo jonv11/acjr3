@@ -23,13 +23,13 @@ For every scenario, use:
 
 Prefer small, reversible edits.  
 When changing workflow-sensitive fields (status, priority, assignee, sprint), add a short audit comment.
-For issue descriptions/comments, prefer `--description-adf-file`, `--field ... --field-adf-file`, and `--body-adf-file` over raw `--body-file` wrappers when possible.
+For issue descriptions/comments, prefer `--description-file <PATH> --description-format adf`, `--field ... --field-file <PATH> --field-format adf`, and `--in <PATH> --input-format adf --yes` over ad hoc payload shaping.
 
 ## Sugaring priorities
 
 Prioritized command sugar opportunities based on playbook order and frequency:
 
-1. `acjr3 issue update`: add targeted flags for common fields (`--priority`, `--labels-add`, `--labels-remove`, `--due-date`, `--fix-version`, `--story-points`) to reduce generic `--body-file` usage in triage, planning, execution, release, and hygiene flows.
+1. `acjr3 issue update`: add targeted flags for common fields (`--priority`, `--labels-add`, `--labels-remove`, `--due-date`, `--fix-version`, `--story-points`) to reduce generic `--in <PATH>` payload usage in triage, planning, execution, release, and hygiene flows.
 2. `acjr3 issue create`: add common creation flags (`--labels`, `--priority`, `--components`, `--due-date`) so fewer scenarios require raw request-body JSON files.
 3. `acjr3 issue transition`: add optional inline update/comment sugar (for example `--comment`, optional `--resolution`) for one-step state changes with audit notes.
 4. `acjr3 project version create` and `acjr3 project version update`: add dedicated shortcuts so release workflows do not need `acjr3 request` for version lifecycle operations.
@@ -48,3 +48,5 @@ Prioritized command sugar opportunities based on playbook order and frequency:
 8. [Release coordination and changelog generation](08-release-coordination-changelog.md)
 9. [Knowledge extraction: decisions and rationale](09-knowledge-extraction-decisions.md)
 10. [Bulk maintenance and hygiene](10-bulk-maintenance-hygiene.md)
+
+

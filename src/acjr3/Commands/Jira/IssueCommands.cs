@@ -1,13 +1,27 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acjr3.Commands.Jira;
 
 public static class IssueCommands
 {
+    private enum DescriptionFileFormat
+    {
+        Text,
+        Adf
+    }
+
+    private enum FieldFileFormat
+    {
+        Json,
+        Adf
+    }
+
     public static Command BuildIssueCommand(IServiceProvider services)
     {
         var issue = new Command("issue", "Jira issue commands");
@@ -24,18 +38,22 @@ public static class IssueCommands
 
     private static Command BuildCreateCommand(IServiceProvider services)
     {
-        var create = new Command("create", "Create a Jira issue");
-        var projectArg = new Argument<string?>("project", () => null, "Project key (e.g. TEST)") { Arity = ArgumentArity.ZeroOrOne };
-        var projectOpt = new Option<string?>("--project", "Project key (e.g. TEST)");
+        var create = new Command("create", "Create a Jira issue (POST /rest/api/3/issue). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var projectArg = new Argument<string?>("project", () => null, "Project key (for example, TEST)") { Arity = ArgumentArity.ZeroOrOne };
+        var projectOpt = new Option<string?>("--project", "Project key (for example, TEST)");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
-        var typeOpt = new Option<string>("--type", () => "Task", "Issue type (e.g. Bug, Task)");
+        var typeOpt = new Option<string>("--type", () => "Task", "Issue type (for example, Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
-        var descriptionAdfFileOpt = new Option<string?>("--description-adf-file", "Read description ADF JSON from file path");
+        var descriptionFileOpt = new Option<string?>("--description-file", "Read description content from file path");
+        var descriptionFormatOpt = new Option<string>("--description-format", () => "text", "Description file format: text|adf");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload matching Jira create-issue schema");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
+        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
+        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
+        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var updateHistoryOpt = new Option<string?>("--update-history", "Jira query parameter updateHistory=true|false");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         create.AddArgument(projectArg);
@@ -43,12 +61,16 @@ public static class IssueCommands
         create.AddOption(summaryOpt);
         create.AddOption(typeOpt);
         create.AddOption(descriptionOpt);
-        create.AddOption(descriptionAdfFileOpt);
+        create.AddOption(descriptionFileOpt);
+        create.AddOption(descriptionFormatOpt);
         create.AddOption(assigneeOpt);
         create.AddOption(bodyOpt);
         create.AddOption(bodyFileOpt);
+        create.AddOption(inOpt);
+        create.AddOption(inputFormatOpt);
         create.AddOption(updateHistoryOpt);
-        create.AddOption(rawOpt);
+        create.AddOption(yesOpt);
+        create.AddOption(forceOpt);
         create.AddOption(failOnNonSuccessOpt);
         create.AddOption(verboseOpt);
         create.SetHandler(async (InvocationContext context) =>
@@ -57,17 +79,46 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
                 return;
             }
 
-            var body = parseResult.GetValueForOption(bodyOpt);
-            var bodyFile = parseResult.GetValueForOption(bodyFileOpt);
-            if (!TryResolveBody(body, bodyFile, context, out var resolvedBody))
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
             {
                 return;
             }
+
+            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
+            {
+                CliOutput.WriteValidationError(context, formatError);
+                return;
+            }
+
+            if (!InputResolver.TryResolveExplicitPayloadSource(
+                    parseResult.GetValueForOption(inOpt),
+                    parseResult.GetValueForOption(bodyOpt),
+                    parseResult.GetValueForOption(bodyFileOpt),
+                    out var payloadSource,
+                    out var sourceError))
+            {
+                CliOutput.WriteValidationError(context, sourceError);
+                return;
+            }
+
+            var createBasePayload = await TryResolveIssueJsonBasePayloadAsync(
+                "{\"fields\":{\"issuetype\":{\"name\":\"Task\"}}}",
+                parseResult.GetValueForOption(inOpt),
+                parseResult.GetValueForOption(bodyOpt),
+                parseResult.GetValueForOption(bodyFileOpt),
+                inputFormat,
+                payloadSource,
+                context,
+                context.GetCancellationToken());
+            if (!createBasePayload.Ok)
+            {
+                return;
+            }
+            var payloadObject = createBasePayload.Payload!;
 
             if (!TryResolveProjectKey(
                     parseResult.GetValueForOption(projectOpt),
@@ -79,37 +130,61 @@ public static class IssueCommands
             }
 
             var summary = parseResult.GetValueForOption(summaryOpt);
-            var type = parseResult.GetValueForOption(typeOpt);
             var description = parseResult.GetValueForOption(descriptionOpt);
-            if (!TryResolveOptionalJsonObjectFile(
-                    parseResult.GetValueForOption(descriptionAdfFileOpt),
-                    "--description-adf-file",
+            if (!TryResolveDescriptionValue(
+                    description,
+                    parseResult.GetValueForOption(descriptionFileOpt),
+                    parseResult.GetValueForOption(descriptionFormatOpt),
+                    WasOptionSupplied(parseResult, "--description-format"),
                     context,
-                    out var descriptionAdf))
+                    out var descriptionValue))
             {
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(description) && descriptionAdf.HasValue)
+            if (!string.IsNullOrWhiteSpace(project))
             {
-                Console.Error.WriteLine("Use either --description or --description-adf-file, not both.");
-                context.ExitCode = 1;
-                return;
+                JsonPayloadPipeline.SetString(payloadObject, project, "fields", "project", "key");
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                JsonPayloadPipeline.SetString(payloadObject, summary, "fields", "summary");
+            }
+
+            if (WasOptionSupplied(parseResult, "--type"))
+            {
+                var type = parseResult.GetValueForOption(typeOpt);
+                if (!string.IsNullOrWhiteSpace(type))
+                {
+                    JsonPayloadPipeline.SetString(payloadObject, type, "fields", "issuetype", "name");
+                }
+            }
+
+            if (descriptionValue is string descriptionText)
+            {
+                if (!string.IsNullOrWhiteSpace(descriptionText))
+                {
+                    JsonPayloadPipeline.SetString(payloadObject, descriptionText, "fields", "description");
+                }
+            }
+            else if (descriptionValue is not null)
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, JsonSerializer.SerializeToNode(descriptionValue), "fields", "description");
             }
 
             var assignee = parseResult.GetValueForOption(assigneeOpt);
-            if (resolvedBody is null)
+            if (!string.IsNullOrWhiteSpace(assignee))
             {
-                if (string.IsNullOrWhiteSpace(project) || string.IsNullOrWhiteSpace(summary))
-                {
-                    Console.Error.WriteLine("Either provide --body/--body-file, or provide project (<project> or --project) and --summary.");
-                    context.ExitCode = 1;
-                    return;
-                }
+                JsonPayloadPipeline.SetString(payloadObject, assignee, "fields", "assignee", "accountId");
+            }
 
-                object? descriptionValue = descriptionAdf.HasValue ? descriptionAdf.Value : description;
-                var fieldsDict = BuildFieldsDictionary(project, summary, type, descriptionValue, assignee);
-                resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["fields"] = fieldsDict });
+            if (string.IsNullOrWhiteSpace(JsonPayloadPipeline.TryGetString(payloadObject, "fields", "project", "key"))
+                || string.IsNullOrWhiteSpace(JsonPayloadPipeline.TryGetString(payloadObject, "fields", "summary"))
+                || string.IsNullOrWhiteSpace(JsonPayloadPipeline.TryGetString(payloadObject, "fields", "issuetype", "name")))
+            {
+                CliOutput.WriteValidationError(context, "Final payload must include fields.project.key, fields.summary, and fields.issuetype.name.");
+                return;
             }
 
             var query = new List<KeyValuePair<string, string>>();
@@ -134,14 +209,13 @@ public static class IssueCommands
                 new List<KeyValuePair<string, string>>(),
                 "application/json",
                 "application/json",
-                resolvedBody,
+                JsonPayloadPipeline.Serialize(payloadObject),
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
             context.ExitCode = exitCode;
@@ -151,22 +225,26 @@ public static class IssueCommands
 
     private static Command BuildUpdateCommand(IServiceProvider services)
     {
-        var update = new Command("update", "Update a Jira issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var update = new Command("update", "Update a Jira issue (PUT /rest/api/3/issue/{issueIdOrKey}). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var projectOpt = new Option<string?>("--project", "Project key");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
-        var typeOpt = new Option<string?>("--type", "Issue type (e.g. Bug, Task)");
+        var typeOpt = new Option<string?>("--type", "Issue type (for example, Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
-        var fieldOpt = new Option<string?>("--field", "Field key to update when using --field-adf-file (e.g. description, customfield_123)");
-        var fieldAdfFileOpt = new Option<string?>("--field-adf-file", "Read field ADF JSON from file path");
+        var fieldOpt = new Option<string?>("--field", "Field key to update when using --field-file (for example, description, customfield_123)");
+        var fieldFileOpt = new Option<string?>("--field-file", "Read field value from file path");
+        var fieldFormatOpt = new Option<string>("--field-format", () => "json", "Field file format: json|adf");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload matching Jira edit-issue schema");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
+        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
+        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
+        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var notifyUsersOpt = new Option<string?>("--notify-users", "Jira query parameter notifyUsers=true|false");
         var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Jira query parameter overrideScreenSecurity=true|false");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Jira query parameter overrideEditableFlag=true|false");
         var returnIssueOpt = new Option<string?>("--return-issue", "Jira query parameter returnIssue=true|false");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -176,15 +254,19 @@ public static class IssueCommands
         update.AddOption(typeOpt);
         update.AddOption(descriptionOpt);
         update.AddOption(fieldOpt);
-        update.AddOption(fieldAdfFileOpt);
+        update.AddOption(fieldFileOpt);
+        update.AddOption(fieldFormatOpt);
         update.AddOption(assigneeOpt);
         update.AddOption(bodyOpt);
         update.AddOption(bodyFileOpt);
+        update.AddOption(inOpt);
+        update.AddOption(inputFormatOpt);
         update.AddOption(notifyUsersOpt);
         update.AddOption(overrideScreenSecurityOpt);
         update.AddOption(overrideEditableFlagOpt);
         update.AddOption(returnIssueOpt);
-        update.AddOption(rawOpt);
+        update.AddOption(yesOpt);
+        update.AddOption(forceOpt);
         update.AddOption(failOnNonSuccessOpt);
         update.AddOption(verboseOpt);
 
@@ -194,53 +276,100 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var key = parseResult.GetValueForArgument(keyArg);
-            var body = parseResult.GetValueForOption(bodyOpt);
-            var bodyFile = parseResult.GetValueForOption(bodyFileOpt);
-            if (!TryResolveBody(body, bodyFile, context, out var resolvedBody))
+            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
             {
+                CliOutput.WriteValidationError(context, formatError);
                 return;
             }
 
-            if (!TryResolveNamedJsonObjectFile(
+            if (!InputResolver.TryResolveExplicitPayloadSource(
+                    parseResult.GetValueForOption(inOpt),
+                    parseResult.GetValueForOption(bodyOpt),
+                    parseResult.GetValueForOption(bodyFileOpt),
+                    out var payloadSource,
+                    out var sourceError))
+            {
+                CliOutput.WriteValidationError(context, sourceError);
+                return;
+            }
+
+            var updateBasePayload = await TryResolveIssueJsonBasePayloadAsync(
+                "{\"fields\":{}}",
+                parseResult.GetValueForOption(inOpt),
+                parseResult.GetValueForOption(bodyOpt),
+                parseResult.GetValueForOption(bodyFileOpt),
+                inputFormat,
+                payloadSource,
+                context,
+                context.GetCancellationToken());
+            if (!updateBasePayload.Ok)
+            {
+                return;
+            }
+            var payloadObject = updateBasePayload.Payload!;
+
+            if (!TryResolveNamedFieldFileValue(
                     parseResult.GetValueForOption(fieldOpt),
-                    parseResult.GetValueForOption(fieldAdfFileOpt),
+                    parseResult.GetValueForOption(fieldFileOpt),
+                    parseResult.GetValueForOption(fieldFormatOpt),
+                    WasOptionSupplied(parseResult, "--field-format"),
                     "--field",
-                    "--field-adf-file",
                     context,
-                    out var adfFieldName,
-                    out var adfFieldValue))
+                    out var fieldName,
+                    out var fieldValue))
             {
                 return;
             }
 
-            if (resolvedBody is null)
+            var project = parseResult.GetValueForOption(projectOpt);
+            if (!string.IsNullOrWhiteSpace(project))
             {
-                var fields = BuildFieldsDictionary(
-                    parseResult.GetValueForOption(projectOpt),
-                    parseResult.GetValueForOption(summaryOpt),
-                    parseResult.GetValueForOption(typeOpt),
-                    parseResult.GetValueForOption(descriptionOpt),
-                    parseResult.GetValueForOption(assigneeOpt));
+                JsonPayloadPipeline.SetString(payloadObject, project, "fields", "project", "key");
+            }
 
-                if (!string.IsNullOrWhiteSpace(adfFieldName) && adfFieldValue.HasValue)
-                {
-                    fields[adfFieldName] = adfFieldValue.Value;
-                }
+            var summary = parseResult.GetValueForOption(summaryOpt);
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                JsonPayloadPipeline.SetString(payloadObject, summary, "fields", "summary");
+            }
 
-                if (fields.Count == 0)
-                {
-                    Console.Error.WriteLine("Provide at least one field option, --field/--field-adf-file, or supply --body/--body-file.");
-                    context.ExitCode = 1;
-                    return;
-                }
+            var type = parseResult.GetValueForOption(typeOpt);
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                JsonPayloadPipeline.SetString(payloadObject, type, "fields", "issuetype", "name");
+            }
 
-                resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["fields"] = fields });
+            var description = parseResult.GetValueForOption(descriptionOpt);
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                JsonPayloadPipeline.SetString(payloadObject, description, "fields", "description");
+            }
+
+            var assignee = parseResult.GetValueForOption(assigneeOpt);
+            if (!string.IsNullOrWhiteSpace(assignee))
+            {
+                JsonPayloadPipeline.SetString(payloadObject, assignee, "fields", "assignee", "accountId");
+            }
+
+            if (!string.IsNullOrWhiteSpace(fieldName) && fieldValue is not null)
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, JsonSerializer.SerializeToNode(fieldValue), "fields", fieldName);
+            }
+
+            if (!HasIssueUpdateOperations(payloadObject))
+            {
+                CliOutput.WriteValidationError(context, "Final payload must include at least one issue update operation.");
+                return;
             }
 
             if (!TryParseBooleanOption(parseResult.GetValueForOption(notifyUsersOpt), "--notify-users", context, out var notifyUsers)
@@ -264,14 +393,13 @@ public static class IssueCommands
                 new List<KeyValuePair<string, string>>(),
                 "application/json",
                 "application/json",
-                resolvedBody,
+                JsonPayloadPipeline.Serialize(payloadObject),
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
@@ -283,14 +411,18 @@ public static class IssueCommands
 
     private static Command BuildDeleteCommand(IServiceProvider services)
     {
-        var delete = new Command("delete", "Delete a Jira issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var delete = new Command("delete", "Delete a Jira issue (DELETE /rest/api/3/issue/{issueIdOrKey}).");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var deleteSubtasksOpt = new Option<string?>("--delete-subtasks", "Jira query parameter deleteSubtasks=true|false");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         delete.AddArgument(keyArg);
         delete.AddOption(deleteSubtasksOpt);
+        delete.AddOption(yesOpt);
+        delete.AddOption(forceOpt);
         delete.AddOption(failOnNonSuccessOpt);
         delete.AddOption(verboseOpt);
 
@@ -300,8 +432,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -323,12 +459,11 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                false,
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
@@ -346,7 +481,6 @@ public static class IssueCommands
         var issueTypeIdsOpt = new Option<string?>("--issuetype-ids", "Comma-separated issue type IDs");
         var issueTypeNamesOpt = new Option<string?>("--issuetype-names", "Comma-separated issue type names");
         var expandOpt = new Option<string?>("--expand", "Expand create metadata fields");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -355,7 +489,6 @@ public static class IssueCommands
         createMeta.AddOption(issueTypeIdsOpt);
         createMeta.AddOption(issueTypeNamesOpt);
         createMeta.AddOption(expandOpt);
-        createMeta.AddOption(rawOpt);
         createMeta.AddOption(failOnNonSuccessOpt);
         createMeta.AddOption(verboseOpt);
 
@@ -365,8 +498,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -386,8 +523,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -403,17 +539,15 @@ public static class IssueCommands
     private static Command BuildEditMetaCommand(IServiceProvider services)
     {
         var editMeta = new Command("editmeta", "Get issue edit metadata");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Override screen security (true|false)");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         editMeta.AddArgument(keyArg);
         editMeta.AddOption(overrideScreenSecurityOpt);
         editMeta.AddOption(overrideEditableFlagOpt);
-        editMeta.AddOption(rawOpt);
         editMeta.AddOption(failOnNonSuccessOpt);
         editMeta.AddOption(verboseOpt);
 
@@ -423,8 +557,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -448,8 +586,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -466,16 +603,15 @@ public static class IssueCommands
     private static Command BuildViewCommand(IServiceProvider services)
     {
         var view = new Command("view", "Show details for a specific issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         view.AddArgument(keyArg);
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        var fieldsOpt = new Option<string?>("--fields", "Comma-separated list of fields to include in the reply (e.g. summary,description)");
+        var fieldsOpt = new Option<string?>("--fields", "Comma-separated list of fields to include in the reply (for example, summary,description)");
         var fieldsByKeysOpt = new Option<string?>("--fields-by-keys", "Interpret fields in --fields by key (true|false)");
         var expandOpt = new Option<string?>("--expand", "Expand issue response entities");
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated issue properties to include");
         var updateHistoryOpt = new Option<string?>("--update-history", "Update issue view history (true|false)");
         var failFastOpt = new Option<string?>("--fail-fast", "Fail fast on invalid request details (true|false)");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         view.AddOption(verboseOpt);
         view.AddOption(fieldsOpt);
@@ -484,7 +620,6 @@ public static class IssueCommands
         view.AddOption(propertiesOpt);
         view.AddOption(updateHistoryOpt);
         view.AddOption(failFastOpt);
-        view.AddOption(rawOpt);
         view.AddOption(failOnNonSuccessOpt);
         view.SetHandler(async (InvocationContext context) =>
         {
@@ -492,10 +627,15 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
                 return;
             }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
+                return;
+            }
+
             var key = parseResult.GetValueForArgument(keyArg);
             var fields = parseResult.GetValueForOption(fieldsOpt);
             if (!TryParseBooleanOption(parseResult.GetValueForOption(fieldsByKeysOpt), "--fields-by-keys", context, out var fieldsByKeys)
@@ -526,8 +666,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -542,80 +681,6 @@ public static class IssueCommands
     private static Command BuildCommentCommand(IServiceProvider services)
     {
         var comment = new Command("comment", "Issue comment commands");
-
-        // Backward-compatible add form: issue comment <KEY> --text <TEXT>
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ZeroOrOne };
-        var textOpt = new Option<string?>("--text", "Comment text for add/update");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
-        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
-        var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-
-        comment.AddArgument(keyArg);
-        comment.AddOption(textOpt);
-        comment.AddOption(bodyOpt);
-        comment.AddOption(bodyFileOpt);
-        comment.AddOption(bodyAdfFileOpt);
-        comment.AddOption(expandOpt);
-        comment.AddOption(rawOpt);
-        comment.AddOption(failOnNonSuccessOpt);
-        comment.AddOption(verboseOpt);
-        comment.SetHandler(async (InvocationContext context) =>
-        {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
-                return;
-            }
-
-            var key = parseResult.GetValueForArgument(keyArg);
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                Console.Error.WriteLine("Either use subcommands or provide <key> for the add form.");
-                context.ExitCode = 1;
-                return;
-            }
-
-            if (!TryBuildCommentBody(
-                    parseResult.GetValueForOption(textOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    parseResult.GetValueForOption(bodyAdfFileOpt),
-                    context,
-                    out var body))
-            {
-                return;
-            }
-
-            var query = new List<KeyValuePair<string, string>>();
-            AddStringQuery(query, "expand", parseResult.GetValueForOption(expandOpt));
-
-            var options = new RequestCommandOptions(
-                System.Net.Http.HttpMethod.Post,
-                $"/rest/api/3/issue/{key}/comment",
-                query,
-                new List<KeyValuePair<string, string>>(),
-                "application/json",
-                "application/json",
-                body,
-                null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
-                false,
-                false,
-                false);
-            var executor = services.GetRequiredService<RequestExecutor>();
-            var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
-            context.ExitCode = exitCode;
-        });
-
         comment.AddCommand(BuildCommentAddCommand(services));
         comment.AddCommand(BuildCommentListCommand(services));
         comment.AddCommand(BuildCommentGetCommand(services));
@@ -627,14 +692,16 @@ public static class IssueCommands
 
     private static Command BuildCommentAddCommand(IServiceProvider services)
     {
-        var add = new Command("add", "Add a comment to an issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var add = new Command("add", "Add a comment to an issue (POST /rest/api/3/issue/{issueIdOrKey}/comment). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var textOpt = new Option<string?>("--text", "Comment text");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
-        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
+        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
+        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
+        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -642,9 +709,11 @@ public static class IssueCommands
         add.AddOption(textOpt);
         add.AddOption(bodyOpt);
         add.AddOption(bodyFileOpt);
-        add.AddOption(bodyAdfFileOpt);
+        add.AddOption(inOpt);
+        add.AddOption(inputFormatOpt);
         add.AddOption(expandOpt);
-        add.AddOption(rawOpt);
+        add.AddOption(yesOpt);
+        add.AddOption(forceOpt);
         add.AddOption(failOnNonSuccessOpt);
         add.AddOption(verboseOpt);
 
@@ -654,19 +723,55 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
                 return;
             }
 
-            if (!TryBuildCommentBody(
-                    parseResult.GetValueForOption(textOpt),
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
+                return;
+            }
+
+            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
+            {
+                CliOutput.WriteValidationError(context, formatError);
+                return;
+            }
+
+            if (!InputResolver.TryResolveExplicitPayloadSource(
+                    parseResult.GetValueForOption(inOpt),
                     parseResult.GetValueForOption(bodyOpt),
                     parseResult.GetValueForOption(bodyFileOpt),
-                    parseResult.GetValueForOption(bodyAdfFileOpt),
-                    context,
-                    out var resolvedBody))
+                    out var payloadSource,
+                    out var sourceError))
             {
+                CliOutput.WriteValidationError(context, sourceError);
+                return;
+            }
+
+            var addCommentBasePayload = await TryResolveCommentBasePayloadAsync(
+                parseResult.GetValueForOption(inOpt),
+                parseResult.GetValueForOption(bodyOpt),
+                parseResult.GetValueForOption(bodyFileOpt),
+                inputFormat,
+                payloadSource,
+                context,
+                context.GetCancellationToken());
+            if (!addCommentBasePayload.Ok)
+            {
+                return;
+            }
+            var payloadObject = addCommentBasePayload.Payload!;
+
+            var text = parseResult.GetValueForOption(textOpt);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, BuildCommentAdfTextNode(text), "body");
+            }
+
+            if (!HasValidCommentBody(payloadObject))
+            {
+                CliOutput.WriteValidationError(context, "Final payload must include a non-empty body.");
                 return;
             }
 
@@ -681,14 +786,13 @@ public static class IssueCommands
                 new List<KeyValuePair<string, string>>(),
                 "application/json",
                 "application/json",
-                resolvedBody,
+                JsonPayloadPipeline.Serialize(payloadObject),
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
@@ -701,12 +805,11 @@ public static class IssueCommands
     private static Command BuildCommentListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List comments for an issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum comments to return");
         var orderByOpt = new Option<string?>("--order-by", "Order by expression");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -715,7 +818,6 @@ public static class IssueCommands
         list.AddOption(maxResultsOpt);
         list.AddOption(orderByOpt);
         list.AddOption(expandOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
 
@@ -725,24 +827,26 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -762,8 +866,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -780,17 +883,15 @@ public static class IssueCommands
     private static Command BuildCommentGetCommand(IServiceProvider services)
     {
         var get = new Command("get", "Get one comment from an issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         get.AddArgument(keyArg);
         get.AddArgument(idArg);
         get.AddOption(expandOpt);
-        get.AddOption(rawOpt);
         get.AddOption(failOnNonSuccessOpt);
         get.AddOption(verboseOpt);
 
@@ -800,8 +901,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -819,8 +924,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -836,17 +940,19 @@ public static class IssueCommands
 
     private static Command BuildCommentUpdateCommand(IServiceProvider services)
     {
-        var update = new Command("update", "Update an existing issue comment");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var update = new Command("update", "Update an issue comment (PUT /rest/api/3/issue/{issueIdOrKey}/comment/{id}). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
         var textOpt = new Option<string?>("--text", "Comment text");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload for Jira comment body");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read JSON payload from file path");
-        var bodyAdfFileOpt = new Option<string?>("--body-adf-file", "Read comment body ADF JSON from file path");
+        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
+        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
+        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var notifyUsersOpt = new Option<string?>("--notify-users", "Notify users (true|false)");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -855,11 +961,13 @@ public static class IssueCommands
         update.AddOption(textOpt);
         update.AddOption(bodyOpt);
         update.AddOption(bodyFileOpt);
-        update.AddOption(bodyAdfFileOpt);
+        update.AddOption(inOpt);
+        update.AddOption(inputFormatOpt);
         update.AddOption(notifyUsersOpt);
         update.AddOption(overrideEditableFlagOpt);
         update.AddOption(expandOpt);
-        update.AddOption(rawOpt);
+        update.AddOption(yesOpt);
+        update.AddOption(forceOpt);
         update.AddOption(failOnNonSuccessOpt);
         update.AddOption(verboseOpt);
 
@@ -869,19 +977,55 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
                 return;
             }
 
-            if (!TryBuildCommentBody(
-                    parseResult.GetValueForOption(textOpt),
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
+                return;
+            }
+
+            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
+            {
+                CliOutput.WriteValidationError(context, formatError);
+                return;
+            }
+
+            if (!InputResolver.TryResolveExplicitPayloadSource(
+                    parseResult.GetValueForOption(inOpt),
                     parseResult.GetValueForOption(bodyOpt),
                     parseResult.GetValueForOption(bodyFileOpt),
-                    parseResult.GetValueForOption(bodyAdfFileOpt),
-                    context,
-                    out var resolvedBody))
+                    out var payloadSource,
+                    out var sourceError))
             {
+                CliOutput.WriteValidationError(context, sourceError);
+                return;
+            }
+
+            var updateCommentBasePayload = await TryResolveCommentBasePayloadAsync(
+                parseResult.GetValueForOption(inOpt),
+                parseResult.GetValueForOption(bodyOpt),
+                parseResult.GetValueForOption(bodyFileOpt),
+                inputFormat,
+                payloadSource,
+                context,
+                context.GetCancellationToken());
+            if (!updateCommentBasePayload.Ok)
+            {
+                return;
+            }
+            var payloadObject = updateCommentBasePayload.Payload!;
+
+            var text = parseResult.GetValueForOption(textOpt);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, BuildCommentAdfTextNode(text), "body");
+            }
+
+            if (!HasValidCommentBody(payloadObject))
+            {
+                CliOutput.WriteValidationError(context, "Final payload must include a non-empty body.");
                 return;
             }
 
@@ -905,14 +1049,13 @@ public static class IssueCommands
                 new List<KeyValuePair<string, string>>(),
                 "application/json",
                 "application/json",
-                resolvedBody,
+                JsonPayloadPipeline.Serialize(payloadObject),
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
@@ -924,14 +1067,18 @@ public static class IssueCommands
 
     private static Command BuildCommentDeleteCommand(IServiceProvider services)
     {
-        var delete = new Command("delete", "Delete an issue comment");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var delete = new Command("delete", "Delete an issue comment (DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}).");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         delete.AddArgument(keyArg);
         delete.AddArgument(idArg);
+        delete.AddOption(yesOpt);
+        delete.AddOption(forceOpt);
         delete.AddOption(failOnNonSuccessOpt);
         delete.AddOption(verboseOpt);
 
@@ -941,8 +1088,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -957,12 +1108,11 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                false,
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
@@ -974,13 +1124,16 @@ public static class IssueCommands
 
     private static Command BuildTransitionCommand(IServiceProvider services)
     {
-        var transition = new Command("transition", "Issue transition commands");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var toOpt = new Option<string?>("--to", "Target transition name (e.g. Done)");
+        var transition = new Command("transition", "Issue transition commands (POST /rest/api/3/issue/{issueIdOrKey}/transitions). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var toOpt = new Option<string?>("--to", "Target transition name (for example, Done)");
         var idOpt = new Option<string?>("--id", "Target transition ID");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON payload for transition request");
-        var bodyFileOpt = new Option<string?>("--body-file", "Read transition JSON payload from file path");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
+        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
+        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
+        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
+        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
+        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         transition.AddArgument(keyArg);
@@ -988,7 +1141,10 @@ public static class IssueCommands
         transition.AddOption(idOpt);
         transition.AddOption(bodyOpt);
         transition.AddOption(bodyFileOpt);
-        transition.AddOption(rawOpt);
+        transition.AddOption(inOpt);
+        transition.AddOption(inputFormatOpt);
+        transition.AddOption(yesOpt);
+        transition.AddOption(forceOpt);
         transition.AddOption(failOnNonSuccessOpt);
         transition.AddOption(verboseOpt);
         transition.SetHandler(async (InvocationContext context) =>
@@ -997,63 +1153,81 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var key = parseResult.GetValueForArgument(keyArg);
             var to = parseResult.GetValueForOption(toOpt);
             var id = parseResult.GetValueForOption(idOpt);
-            if (!TryResolveBody(parseResult.GetValueForOption(bodyOpt), parseResult.GetValueForOption(bodyFileOpt), context, out var explicitBody))
+            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
             {
+                CliOutput.WriteValidationError(context, formatError);
                 return;
             }
 
-            var hasTransitionSelector = !string.IsNullOrWhiteSpace(to) || !string.IsNullOrWhiteSpace(id);
-            if (explicitBody is not null && hasTransitionSelector)
+            if (!InputResolver.TryResolveExplicitPayloadSource(
+                    parseResult.GetValueForOption(inOpt),
+                    parseResult.GetValueForOption(bodyOpt),
+                    parseResult.GetValueForOption(bodyFileOpt),
+                    out var payloadSource,
+                    out var sourceError))
             {
-                Console.Error.WriteLine("Use either --body/--body-file or --to/--id.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, sourceError);
                 return;
             }
 
-            if (explicitBody is null && string.IsNullOrWhiteSpace(to) == string.IsNullOrWhiteSpace(id))
+            var transitionBasePayload = await TryResolveIssueTransitionBasePayloadAsync(
+                parseResult.GetValueForOption(inOpt),
+                parseResult.GetValueForOption(bodyOpt),
+                parseResult.GetValueForOption(bodyFileOpt),
+                inputFormat,
+                payloadSource,
+                context,
+                context.GetCancellationToken());
+            if (!transitionBasePayload.Ok)
             {
-                Console.Error.WriteLine("Provide exactly one of --to or --id.");
-                context.ExitCode = 1;
+                return;
+            }
+            var payloadObject = transitionBasePayload.Payload!;
+
+            if (!string.IsNullOrWhiteSpace(to) && !string.IsNullOrWhiteSpace(id))
+            {
+                CliOutput.WriteValidationError(context, "Provide either --to or --id, not both.");
                 return;
             }
 
-            string body;
-            if (explicitBody is not null)
+            if (!string.IsNullOrWhiteSpace(id))
             {
-                body = explicitBody;
+                JsonPayloadPipeline.SetString(payloadObject, id, "transition", "id");
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(to))
             {
-                var transitionId = id;
+                var transitionId = await ResolveTransitionIdByNameAsync(
+                    services,
+                    config!,
+                    key,
+                    to,
+                    logger,
+                    context.GetCancellationToken());
                 if (string.IsNullOrWhiteSpace(transitionId))
                 {
-                    transitionId = await ResolveTransitionIdByNameAsync(
-                        services,
-                        config!,
-                        key,
-                        to!,
-                        logger,
-                        context.GetCancellationToken());
-                    if (string.IsNullOrWhiteSpace(transitionId))
-                    {
-                        context.ExitCode = 1;
-                        return;
-                    }
+                    CliOutput.WriteValidationError(context, $"Could not resolve transition '{to}' for issue '{key}'.");
+                    return;
                 }
 
-                var payload = new Dictionary<string, object?>
-                {
-                    ["transition"] = new Dictionary<string, string> { ["id"] = transitionId! }
-                };
-                body = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = false });
+                JsonPayloadPipeline.SetString(payloadObject, transitionId, "transition", "id");
+            }
+
+            if (string.IsNullOrWhiteSpace(JsonPayloadPipeline.TryGetString(payloadObject, "transition", "id")))
+            {
+                CliOutput.WriteValidationError(context, "Final payload must include transition.id (set --id/--to or provide it in the base payload).");
+                return;
             }
 
             var transitionOptions = new RequestCommandOptions(
@@ -1063,14 +1237,13 @@ public static class IssueCommands
                 new List<KeyValuePair<string, string>>(),
                 "application/json",
                 "application/json",
-                body,
+                JsonPayloadPipeline.Serialize(payloadObject),
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
-                false);
+                parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, transitionOptions, logger, context.GetCancellationToken());
             context.ExitCode = exitCode;
@@ -1083,13 +1256,12 @@ public static class IssueCommands
     private static Command BuildTransitionListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List available transitions for an issue");
-        var keyArg = new Argument<string>("key", "Issue key (e.g. TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var expandOpt = new Option<string?>("--expand", "Expand transition response entities");
         var transitionIdOpt = new Option<string?>("--transition-id", "Filter by transition ID");
         var skipRemoteOnlyConditionOpt = new Option<string?>("--skip-remote-only-condition", "Skip remote-only condition check (true|false)");
         var includeUnavailableTransitionsOpt = new Option<string?>("--include-unavailable-transitions", "Include unavailable transitions (true|false)");
         var sortByOpsBarAndStatusOpt = new Option<string?>("--sort-by-ops-bar-and-status", "Sort by ops bar and status (true|false)");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
@@ -1099,7 +1271,6 @@ public static class IssueCommands
         list.AddOption(skipRemoteOnlyConditionOpt);
         list.AddOption(includeUnavailableTransitionsOpt);
         list.AddOption(sortByOpsBarAndStatusOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
 
@@ -1109,8 +1280,12 @@ public static class IssueCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
@@ -1138,8 +1313,7 @@ public static class IssueCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -1238,35 +1412,407 @@ public static class IssueCommands
         }
     }
 
-    private static bool TryResolveBody(string? body, string? bodyFile, InvocationContext context, out string? resolvedBody)
+    private static async Task<(bool Ok, JsonObject? Payload)> TryResolveIssueJsonBasePayloadAsync(
+        string defaultPayload,
+        string? inPath,
+        string? body,
+        string? bodyFile,
+        InputFormat inputFormat,
+        ExplicitPayloadSource payloadSource,
+        InvocationContext context,
+        CancellationToken cancellationToken)
     {
-        resolvedBody = null;
-
-        if (!string.IsNullOrWhiteSpace(body) && !string.IsNullOrWhiteSpace(bodyFile))
+        switch (payloadSource)
         {
-            Console.Error.WriteLine("Use either --body or --body-file, not both.");
-            context.ExitCode = 1;
+            case ExplicitPayloadSource.In:
+            {
+                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
+                if (!payload.Ok)
+                {
+                    CliOutput.WriteValidationError(context, payload.Error);
+                    return (false, null);
+                }
+
+                if (!TryNormalizeIssueInputPayload(payload.Payload, inputFormat, context, out var normalizedBody))
+                {
+                    return (false, null);
+                }
+
+                if (string.IsNullOrWhiteSpace(normalizedBody))
+                {
+                    CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
+                    return (false, null);
+                }
+
+                if (!JsonPayloadPipeline.TryParseJsonObject(normalizedBody, "--in", out var inPayloadObject, out var parseError))
+                {
+                    CliOutput.WriteValidationError(context, parseError);
+                    return (false, null);
+                }
+
+                return (true, inPayloadObject);
+            }
+            case ExplicitPayloadSource.Body:
+            {
+                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
+                {
+                    CliOutput.WriteValidationError(context, parseBodyError);
+                    return (false, null);
+                }
+
+                return (true, bodyObject);
+            }
+            case ExplicitPayloadSource.BodyFile:
+            {
+                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
+                {
+                    CliOutput.WriteValidationError(context, bodyFileError);
+                    return (false, null);
+                }
+
+                return (true, bodyFileObject);
+            }
+            default:
+                return (true, JsonPayloadPipeline.ParseDefaultPayload(defaultPayload));
+        }
+    }
+
+    private static async Task<(bool Ok, JsonObject? Payload)> TryResolveIssueTransitionBasePayloadAsync(
+        string? inPath,
+        string? body,
+        string? bodyFile,
+        InputFormat inputFormat,
+        ExplicitPayloadSource payloadSource,
+        InvocationContext context,
+        CancellationToken cancellationToken)
+    {
+        switch (payloadSource)
+        {
+            case ExplicitPayloadSource.In:
+            {
+                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
+                if (!payload.Ok)
+                {
+                    CliOutput.WriteValidationError(context, payload.Error);
+                    return (false, null);
+                }
+
+                if (!TryNormalizeTransitionInputPayload(payload.Payload, inputFormat, context, out var normalizedBody))
+                {
+                    return (false, null);
+                }
+
+                if (string.IsNullOrWhiteSpace(normalizedBody))
+                {
+                    CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
+                    return (false, null);
+                }
+
+                if (!JsonPayloadPipeline.TryParseJsonObject(normalizedBody, "--in", out var transitionPayload, out var parseError))
+                {
+                    CliOutput.WriteValidationError(context, parseError);
+                    return (false, null);
+                }
+
+                return (true, transitionPayload);
+            }
+            case ExplicitPayloadSource.Body:
+            {
+                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
+                {
+                    CliOutput.WriteValidationError(context, parseBodyError);
+                    return (false, null);
+                }
+
+                return (true, bodyObject);
+            }
+            case ExplicitPayloadSource.BodyFile:
+            {
+                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
+                {
+                    CliOutput.WriteValidationError(context, bodyFileError);
+                    return (false, null);
+                }
+
+                return (true, bodyFileObject);
+            }
+            default:
+                return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"transition\":{},\"fields\":{},\"update\":{}}"));
+        }
+    }
+
+    private static async Task<(bool Ok, JsonObject? Payload)> TryResolveCommentBasePayloadAsync(
+        string? inPath,
+        string? body,
+        string? bodyFile,
+        InputFormat inputFormat,
+        ExplicitPayloadSource payloadSource,
+        InvocationContext context,
+        CancellationToken cancellationToken)
+    {
+        switch (payloadSource)
+        {
+            case ExplicitPayloadSource.In:
+            {
+                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
+                if (!payload.Ok)
+                {
+                    CliOutput.WriteValidationError(context, payload.Error);
+                    return (false, null);
+                }
+
+                if (!TryBuildCommentBasePayloadFromInput(payload.Payload, inputFormat, context, out var commentPayload))
+                {
+                    return (false, null);
+                }
+
+                return (true, commentPayload);
+            }
+            case ExplicitPayloadSource.Body:
+            {
+                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
+                {
+                    CliOutput.WriteValidationError(context, parseBodyError);
+                    return (false, null);
+                }
+
+                return (true, bodyObject);
+            }
+            case ExplicitPayloadSource.BodyFile:
+            {
+                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
+                {
+                    CliOutput.WriteValidationError(context, bodyFileError);
+                    return (false, null);
+                }
+
+                return (true, bodyFileObject);
+            }
+            default:
+                return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"body\":{}}"));
+        }
+    }
+
+    private static bool TryBuildCommentBasePayloadFromInput(
+        string? payload,
+        InputFormat inputFormat,
+        InvocationContext context,
+        out JsonObject commentPayload)
+    {
+        commentPayload = JsonPayloadPipeline.ParseDefaultPayload("{\"body\":{}}");
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(bodyFile))
+        if (inputFormat == InputFormat.Adf)
+        {
+            if (!JsonPayloadPipeline.TryParseJsonObject(payload, "--in", out var adfBody, out var parseAdfError))
+            {
+                CliOutput.WriteValidationError(context, parseAdfError);
+                return false;
+            }
+
+            JsonPayloadPipeline.SetNode(commentPayload, adfBody, "body");
+            return true;
+        }
+
+        if (inputFormat == InputFormat.Markdown || inputFormat == InputFormat.Text)
+        {
+            JsonPayloadPipeline.SetNode(commentPayload, BuildCommentAdfTextNode(payload), "body");
+            return true;
+        }
+
+        if (!JsonPayloadPipeline.TryParseJsonObject(payload, "--in", out var jsonPayload, out var parseJsonError))
+        {
+            CliOutput.WriteValidationError(context, parseJsonError);
+            return false;
+        }
+
+        commentPayload = jsonPayload!;
+        return true;
+    }
+
+    private static JsonObject BuildCommentAdfTextNode(string text)
+    {
+        return new JsonObject
+        {
+            ["type"] = "doc",
+            ["version"] = 1,
+            ["content"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["type"] = "paragraph",
+                    ["content"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["type"] = "text",
+                            ["text"] = text
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static bool HasIssueUpdateOperations(JsonObject payload)
+    {
+        foreach (var property in payload)
+        {
+            if (property.Value is null)
+            {
+                continue;
+            }
+
+            if (property.Key.Equals("fields", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value is JsonObject fields && fields.Count > 0)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (property.Key.Equals("update", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value is JsonObject update && update.Count > 0)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (JsonPayloadPipeline.HasMeaningfulNode(property.Value))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasValidCommentBody(JsonObject payload)
+    {
+        return JsonPayloadPipeline.HasMeaningfulNode(JsonPayloadPipeline.TryGetNode(payload, "body"));
+    }
+
+    private static bool TryResolveDescriptionValue(
+        string? descriptionInline,
+        string? descriptionFile,
+        string? descriptionFormat,
+        bool formatOptionSpecified,
+        InvocationContext context,
+        out object? descriptionValue)
+    {
+        descriptionValue = descriptionInline;
+
+        var effectiveFile = descriptionFile;
+        var effectiveFormat = descriptionFormat ?? "text";
+
+        if (string.IsNullOrWhiteSpace(effectiveFile))
+        {
+            if (formatOptionSpecified)
+            {
+                CliOutput.WriteValidationError(context, "--description-format requires --description-file.");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(descriptionInline))
+        {
+            CliOutput.WriteValidationError(context, "Use either --description or --description-file, not both.");
+            return false;
+        }
+
+        if (!TryParseDescriptionFormat(effectiveFormat, context, out var parsedFormat))
+        {
+            return false;
+        }
+
+        if (parsedFormat == DescriptionFileFormat.Text)
         {
             try
             {
-                resolvedBody = File.ReadAllText(bodyFile!);
+                descriptionValue = TextFileInput.ReadAllTextNormalized(effectiveFile);
+                return true;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Failed to read body file '{bodyFile}': {ex.Message}");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, $"Failed to read --description-file '{effectiveFile}': {ex.Message}");
                 return false;
             }
         }
-        else if (!string.IsNullOrWhiteSpace(body))
+
+        if (!TryReadJsonObjectFile(effectiveFile, "--description-file", context, out var descriptionAdf))
         {
-            resolvedBody = body;
+            return false;
         }
 
+        descriptionValue = descriptionAdf;
+        return true;
+    }
+
+    private static bool TryResolveNamedFieldFileValue(
+        string? fieldName,
+        string? fieldFile,
+        string? fieldFormat,
+        bool formatOptionSpecified,
+        string fieldNameOptionName,
+        InvocationContext context,
+        out string? resolvedName,
+        out JsonElement? fieldValue)
+    {
+        resolvedName = null;
+        fieldValue = null;
+
+        var effectiveFile = fieldFile;
+        var effectiveFormat = fieldFormat ?? "json";
+
+        var hasName = !string.IsNullOrWhiteSpace(fieldName);
+        var hasFile = !string.IsNullOrWhiteSpace(effectiveFile);
+        if (!hasName && !hasFile)
+        {
+            if (formatOptionSpecified)
+            {
+                CliOutput.WriteValidationError(context, "--field-format requires --field-file.");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (!hasName || !hasFile)
+        {
+            CliOutput.WriteValidationError(context, $"Use {fieldNameOptionName} together with --field-file.");
+            return false;
+        }
+
+        if (!TryParseFieldFormat(effectiveFormat, context, out var parsedFormat))
+        {
+            return false;
+        }
+
+        resolvedName = fieldName!.Trim();
+
+        if (!TryReadJsonFile(effectiveFile!, "--field-file", context, out var parsedFieldValue))
+        {
+            return false;
+        }
+
+        if (parsedFormat == FieldFileFormat.Adf && parsedFieldValue.ValueKind != JsonValueKind.Object)
+        {
+            CliOutput.WriteValidationError(context, $"--field-file '{effectiveFile}' must contain a JSON object when --field-format adf is used.");
+            return false;
+        }
+
+        fieldValue = parsedFieldValue;
         return true;
     }
 
@@ -1282,172 +1828,146 @@ public static class IssueCommands
         if (!string.IsNullOrWhiteSpace(projectArgument)
             && !project.Equals(projectArgument, StringComparison.OrdinalIgnoreCase))
         {
-            Console.Error.WriteLine($"Project mismatch: argument '{projectArgument}' does not match --project '{projectOption}'.");
-            context.ExitCode = 1;
+            CliOutput.WriteValidationError(context, $"Project mismatch: argument '{projectArgument}' does not match --project '{projectOption}'.");
             return false;
         }
 
-        return true;
-    }
-
-    private static bool TryResolveOptionalJsonObjectFile(
-        string? filePath,
-        string optionName,
-        InvocationContext context,
-        out JsonElement? jsonObject)
-    {
-        jsonObject = null;
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return true;
-        }
-
-        if (!TryReadJsonObjectFile(filePath, optionName, context, out var parsed))
-        {
-            return false;
-        }
-
-        jsonObject = parsed;
-        return true;
-    }
-
-    private static bool TryResolveNamedJsonObjectFile(
-        string? name,
-        string? filePath,
-        string nameOptionName,
-        string fileOptionName,
-        InvocationContext context,
-        out string? resolvedName,
-        out JsonElement? jsonObject)
-    {
-        resolvedName = null;
-        jsonObject = null;
-
-        var hasName = !string.IsNullOrWhiteSpace(name);
-        var hasFile = !string.IsNullOrWhiteSpace(filePath);
-        if (!hasName && !hasFile)
-        {
-            return true;
-        }
-
-        if (!hasName || !hasFile)
-        {
-            Console.Error.WriteLine($"Use {nameOptionName} together with {fileOptionName}.");
-            context.ExitCode = 1;
-            return false;
-        }
-
-        resolvedName = name!.Trim();
-        if (!TryReadJsonObjectFile(filePath!, fileOptionName, context, out var parsed))
-        {
-            return false;
-        }
-
-        jsonObject = parsed;
         return true;
     }
 
     private static bool TryReadJsonObjectFile(string filePath, string optionName, InvocationContext context, out JsonElement jsonObject)
     {
         jsonObject = default;
+        if (!TryReadJsonFile(filePath, optionName, context, out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed.ValueKind != JsonValueKind.Object)
+        {
+            CliOutput.WriteValidationError(context, $"{optionName} file '{filePath}' must contain a JSON object.");
+            return false;
+        }
+
+        jsonObject = parsed;
+        return true;
+    }
+
+    private static bool TryReadJsonFile(string filePath, string optionName, InvocationContext context, out JsonElement jsonValue)
+    {
+        jsonValue = default;
         try
         {
-            var text = File.ReadAllText(filePath);
+            var text = TextFileInput.ReadAllTextNormalized(filePath);
             using var doc = JsonDocument.Parse(text);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                Console.Error.WriteLine($"{optionName} file '{filePath}' must contain a JSON object.");
-                context.ExitCode = 1;
-                return false;
-            }
-
-            jsonObject = doc.RootElement.Clone();
+            jsonValue = doc.RootElement.Clone();
             return true;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to read {optionName} file '{filePath}': {ex.Message}");
-            context.ExitCode = 1;
+            CliOutput.WriteValidationError(context, $"Failed to read {optionName} file '{filePath}': {ex.Message}");
             return false;
         }
     }
 
-    private static bool TryBuildCommentBody(
-        string? text,
-        string? body,
-        string? bodyFile,
-        string? bodyAdfFile,
-        InvocationContext context,
-        out string? resolvedBody)
+    private static bool TryParseJsonElement(string json, string optionName, InvocationContext context, out JsonElement value)
     {
-        resolvedBody = null;
-
-        if (!TryResolveBody(body, bodyFile, context, out var explicitBody))
+        value = default;
+        try
         {
+            using var doc = JsonDocument.Parse(json);
+            value = doc.RootElement.Clone();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            CliOutput.WriteValidationError(context, $"Failed to parse {optionName} payload: {ex.Message}");
             return false;
         }
 
-        if (!TryResolveOptionalJsonObjectFile(bodyAdfFile, "--body-adf-file", context, out var adfBody))
-        {
-            return false;
-        }
+    }
 
-        if (explicitBody is not null && adfBody.HasValue)
+    private static bool TryNormalizeIssueInputPayload(string? payload, InputFormat format, InvocationContext context, out string? normalizedBody)
+    {
+        normalizedBody = payload;
+        if (string.IsNullOrWhiteSpace(payload))
         {
-            Console.Error.WriteLine("Use either --body/--body-file or --body-adf-file, not both.");
-            context.ExitCode = 1;
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(text) && (explicitBody is not null || adfBody.HasValue))
-        {
-            Console.Error.WriteLine("Use either --text or one of --body/--body-file/--body-adf-file, not both.");
-            context.ExitCode = 1;
-            return false;
-        }
-
-        if (explicitBody is not null)
-        {
-            resolvedBody = explicitBody;
             return true;
         }
 
-        if (adfBody.HasValue)
+        if (format == InputFormat.Adf)
         {
-            resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["body"] = adfBody.Value });
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            Console.Error.WriteLine("Provide --text, --body, --body-file, or --body-adf-file.");
-            context.ExitCode = 1;
-            return false;
-        }
-
-        var adfTextBody = new Dictionary<string, object?>
-        {
-            ["type"] = "doc",
-            ["version"] = 1,
-            ["content"] = new object[]
+            if (!TryParseJsonElement(payload, "--in", context, out var adfValue))
             {
-                new Dictionary<string, object?>
-                {
-                    ["type"] = "paragraph",
-                    ["content"] = new object[]
-                    {
-                        new Dictionary<string, object?>
-                        {
-                            ["type"] = "text",
-                            ["text"] = text
-                        }
-                    }
-                }
+                return false;
             }
-        };
 
-        resolvedBody = JsonSerializer.Serialize(new Dictionary<string, object?> { ["body"] = adfTextBody });
+            normalizedBody = JsonSerializer.Serialize(adfValue);
+            return true;
+        }
+
         return true;
+    }
+
+    private static bool TryNormalizeTransitionInputPayload(string? payload, InputFormat format, InvocationContext context, out string? normalizedBody)
+    {
+        normalizedBody = payload;
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return true;
+        }
+
+        if (format == InputFormat.Markdown || format == InputFormat.Text)
+        {
+            CliOutput.WriteValidationError(context, "--input-format for issue transition --in must be json or adf.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool WasOptionSupplied(ParseResult parseResult, string alias)
+    {
+        return parseResult.CommandResult
+            .Children
+            .OfType<System.CommandLine.Parsing.OptionResult>()
+            .Any(option => option.Option.HasAlias(alias) && option.Tokens.Count > 0);
+    }
+
+    private static bool TryParseDescriptionFormat(string raw, InvocationContext context, out DescriptionFileFormat format)
+    {
+        format = DescriptionFileFormat.Text;
+        if (raw.Equals("text", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (raw.Equals("adf", StringComparison.OrdinalIgnoreCase))
+        {
+            format = DescriptionFileFormat.Adf;
+            return true;
+        }
+
+        CliOutput.WriteValidationError(context, "--description-format must be one of: text, adf.");
+        return false;
+    }
+
+    private static bool TryParseFieldFormat(string raw, InvocationContext context, out FieldFileFormat format)
+    {
+        format = FieldFileFormat.Json;
+        if (raw.Equals("json", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (raw.Equals("adf", StringComparison.OrdinalIgnoreCase))
+        {
+            format = FieldFileFormat.Adf;
+            return true;
+        }
+
+        CliOutput.WriteValidationError(context, "--field-format must be one of: json, adf.");
+        return false;
     }
 
     private static void AddStringQuery(List<KeyValuePair<string, string>> query, string key, string? value)
@@ -1464,50 +1984,6 @@ public static class IssueCommands
         {
             query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
         }
-    }
-
-    private static Dictionary<string, object?> BuildFieldsDictionary(
-        string? project,
-        string? summary,
-        string? issueType,
-        object? description,
-        string? assignee)
-    {
-        var fields = new Dictionary<string, object?>();
-
-        if (!string.IsNullOrWhiteSpace(project))
-        {
-            fields["project"] = new Dictionary<string, string> { ["key"] = project };
-        }
-
-        if (!string.IsNullOrWhiteSpace(summary))
-        {
-            fields["summary"] = summary;
-        }
-
-        if (!string.IsNullOrWhiteSpace(issueType))
-        {
-            fields["issuetype"] = new Dictionary<string, string> { ["name"] = issueType };
-        }
-
-        if (description is string descriptionText)
-        {
-            if (!string.IsNullOrWhiteSpace(descriptionText))
-            {
-                fields["description"] = descriptionText;
-            }
-        }
-        else if (description is not null)
-        {
-            fields["description"] = description;
-        }
-
-        if (!string.IsNullOrWhiteSpace(assignee))
-        {
-            fields["assignee"] = new Dictionary<string, string> { ["accountId"] = assignee };
-        }
-
-        return fields;
     }
 
     private static void AddBooleanQuery(List<KeyValuePair<string, string>> query, string key, bool? value)
@@ -1528,8 +2004,7 @@ public static class IssueCommands
 
         if (!bool.TryParse(raw, out var parsed))
         {
-            Console.Error.WriteLine($"{optionName} must be 'true' or 'false'.");
-            context.ExitCode = 1;
+            CliOutput.WriteValidationError(context, $"{optionName} must be 'true' or 'false'.");
             return false;
         }
 
@@ -1537,4 +2012,9 @@ public static class IssueCommands
         return true;
     }
 }
+
+
+
+
+
 

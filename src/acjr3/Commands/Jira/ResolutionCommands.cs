@@ -20,14 +20,12 @@ public static class ResolutionCommands
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of resolutions to return");
         var idOpt = new Option<string?>("--id", "Comma-separated resolution IDs");
         var onlyDefaultOpt = new Option<string?>("--only-default", "Filter default resolutions only (true|false)");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(idOpt);
         list.AddOption(onlyDefaultOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -36,24 +34,26 @@ public static class ResolutionCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -81,8 +81,7 @@ public static class ResolutionCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -104,8 +103,7 @@ public static class ResolutionCommands
 
         if (!bool.TryParse(raw, out var parsed))
         {
-            Console.Error.WriteLine($"{optionName} must be 'true' or 'false'.");
-            context.ExitCode = 1;
+            CliOutput.WriteValidationError(context, $"{optionName} must be 'true' or 'false'.");
             return false;
         }
 
@@ -129,5 +127,8 @@ public static class ResolutionCommands
         }
     }
 }
+
+
+
 
 

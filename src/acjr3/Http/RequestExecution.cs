@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,12 +16,11 @@ public sealed record RequestCommandOptions(
     string? ContentType,
     string? Body,
     string? OutPath,
-    bool Raw,
-    bool IncludeHeaders,
+    OutputPreferences Output,
     bool FailOnNonSuccess,
-    bool DryRun,
     bool RetryNonIdempotent,
-    bool Paginate);
+    bool Paginate,
+    bool Confirmed);
 
 public interface IClock
 {
@@ -120,8 +121,10 @@ public sealed class RequestExecutor(
     IHttpClientFactory httpClientFactory,
     AuthHeaderProvider authHeaderProvider,
     RetryPolicy retryPolicy,
-    ResponseFormatter responseFormatter)
+    OutputRenderer outputRenderer)
 {
+    private const string EnvelopeVersion = "1.0";
+
     public async Task<int> ExecuteAsync(
         Acjr3Config config,
         RequestCommandOptions options,
@@ -130,36 +133,62 @@ public sealed class RequestExecutor(
     {
         if (options.Paginate && options.Method != HttpMethod.Get)
         {
-            Console.Error.WriteLine("--paginate is only supported for GET requests.");
-            return 1;
+            return WriteValidationError("--all/--paginate is only supported for GET requests.", options.Output);
+        }
+
+        if (IsMutatingMethod(options.Method) && !options.Confirmed)
+        {
+            return WriteValidationError("Destructive/mutating operation requires --yes or --force.", options.Output);
         }
 
         var url = UrlBuilder.Build(config.SiteUrl, options.Path, options.Query);
         var headers = BuildHeaders(config, options);
+        var stopwatch = Stopwatch.StartNew();
 
-        if (options.DryRun)
+        try
         {
-            Console.WriteLine($"[dry-run] {options.Method} {url}");
-            foreach (var item in headers)
+            if (options.Paginate)
             {
-                Console.WriteLine($"[dry-run] {item.Key}: {Redactor.RedactHeader(item.Key, item.Value)}");
+                return await ExecutePaginatedAsync(config, options, logger, cancellationToken, stopwatch);
             }
 
-            if (options.Body is { Length: > 0 })
-            {
-                Console.WriteLine($"[dry-run] body-length={Encoding.UTF8.GetByteCount(options.Body)}");
-            }
-
-            return 0;
+            var response = await SendWithRetriesAsync(config, options, url, headers, logger, cancellationToken);
+            return await HandleResponseAsync(response, options, cancellationToken, stopwatch);
         }
-
-        if (options.Paginate)
+        catch (Exception ex)
         {
-            return await ExecutePaginatedAsync(config, options, logger, cancellationToken);
+            stopwatch.Stop();
+            var (exitCode, errorCode) = CliErrorMapper.FromException(ex);
+            var envelope = new CliEnvelope(
+                Success: false,
+                Data: null,
+                Error: new CliError(errorCode, ex.Message, null, "Inspect --debug/--trace output and verify network connectivity."),
+                Meta: new CliMeta(
+                    EnvelopeVersion,
+                    RequestId: null,
+                    DurationMs: (long)stopwatch.Elapsed.TotalMilliseconds,
+                    StatusCode: null,
+                    Method: options.Method.Method,
+                    Path: options.Path));
+            WriteEnvelope(envelope, options.Output);
+            return (int)exitCode;
         }
+    }
 
-        var response = await SendWithRetriesAsync(config, options, url, headers, logger, cancellationToken);
-        return await HandleResponseAsync(response, options, logger, cancellationToken);
+    private static bool IsMutatingMethod(HttpMethod method)
+    {
+        return method == HttpMethod.Post || method == HttpMethod.Put || method == HttpMethod.Patch || method == HttpMethod.Delete;
+    }
+
+    private int WriteValidationError(string message, OutputPreferences output)
+    {
+        var envelope = new CliEnvelope(
+            Success: false,
+            Data: null,
+            Error: new CliError(CliErrorCode.Validation, message, null, null),
+            Meta: new CliMeta(EnvelopeVersion, null, null, null, null, null));
+        WriteEnvelope(envelope, output);
+        return (int)CliExitCode.Validation;
     }
 
     private Dictionary<string, string> BuildHeaders(Acjr3Config config, RequestCommandOptions options)
@@ -259,46 +288,154 @@ public sealed class RequestExecutor(
         return request;
     }
 
-    private async Task<int> HandleResponseAsync(HttpResponseMessage response, RequestCommandOptions options, IAppLogger logger, CancellationToken cancellationToken)
+    private async Task<int> HandleResponseAsync(
+        HttpResponseMessage response,
+        RequestCommandOptions options,
+        CancellationToken cancellationToken,
+        Stopwatch stopwatch)
     {
         using var _ = response;
+        stopwatch.Stop();
+
+        var statusCode = response.StatusCode;
+        var requestId = TryGetRequestId(response);
+        var meta = new CliMeta(
+            Version: EnvelopeVersion,
+            RequestId: requestId,
+            DurationMs: (long)stopwatch.Elapsed.TotalMilliseconds,
+            StatusCode: (int)statusCode,
+            Method: options.Method.Method,
+            Path: options.Path);
+
         if (!string.IsNullOrWhiteSpace(options.OutPath))
         {
-            var directory = Path.GetDirectoryName(options.OutPath!);
-            if (!string.IsNullOrWhiteSpace(directory))
+            var fileInfo = await SaveBodyToFileAsync(response, options.OutPath!, cancellationToken);
+            var envelope = response.IsSuccessStatusCode
+                ? new CliEnvelope(true, fileInfo, null, meta)
+                : new CliEnvelope(false, null, BuildHttpError(statusCode, response.ReasonPhrase, null), meta);
+
+            WriteEnvelope(envelope, options.Output);
+            if (response.IsSuccessStatusCode)
             {
-                Directory.CreateDirectory(directory);
+                return (int)CliExitCode.Success;
             }
 
-            await using var fileStream = new FileStream(options.OutPath!, FileMode.Create, FileAccess.Write, FileShare.None);
-            await response.Content.CopyToAsync(fileStream, cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
+            if (!options.FailOnNonSuccess)
+            {
+                return (int)CliExitCode.Success;
+            }
 
-            var headerOnlyOutput = responseFormatter.Format(response, [], raw: true, options.IncludeHeaders);
-            Console.WriteLine(headerOnlyOutput);
-            Console.WriteLine($"Saved response body to {options.OutPath} ({fileStream.Length} bytes)");
+            var (exitCode, _) = CliErrorMapper.FromHttpStatus(statusCode);
+            return (int)exitCode;
         }
-        else
+
+        var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        var parsedData = ParsePayload(response, payload);
+
+        if (response.IsSuccessStatusCode)
         {
-            var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            var output = responseFormatter.Format(response, payload, options.Raw, options.IncludeHeaders);
-            Console.WriteLine(output);
+            var envelope = new CliEnvelope(true, parsedData, null, meta);
+            WriteEnvelope(envelope, options.Output);
+            return (int)CliExitCode.Success;
         }
 
-        if (!response.IsSuccessStatusCode && options.FailOnNonSuccess)
+        var error = BuildHttpError(statusCode, response.ReasonPhrase, parsedData);
+        var errorEnvelope = new CliEnvelope(false, null, error, meta);
+        WriteEnvelope(errorEnvelope, options.Output);
+
+        if (!options.FailOnNonSuccess)
         {
-            logger.Verbose("Exiting non-zero because --fail-on-non-success was enabled.");
-            return 1;
+            return (int)CliExitCode.Success;
         }
 
-        return 0;
+        var (mappedExitCode, _) = CliErrorMapper.FromHttpStatus(statusCode);
+        return (int)mappedExitCode;
+    }
+
+    private static async Task<object> SaveBodyToFileAsync(HttpResponseMessage response, string outPath, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(outPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await using var fileStream = new FileStream(outPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await response.Content.CopyToAsync(fileStream, cancellationToken);
+        await fileStream.FlushAsync(cancellationToken);
+        return new
+        {
+            savedTo = outPath,
+            bytes = fileStream.Length
+        };
+    }
+
+    private static CliError BuildHttpError(HttpStatusCode statusCode, string? reasonPhrase, object? details)
+    {
+        var (_, mappedCode) = CliErrorMapper.FromHttpStatus(statusCode);
+        var message = $"HTTP {(int)statusCode} {reasonPhrase}".Trim();
+        return new CliError(mappedCode, message, details, "Use --trace for request/response diagnostics.");
+    }
+
+    private static object? ParsePayload(HttpResponseMessage response, byte[] payload)
+    {
+        if (payload.Length == 0 || response.StatusCode == HttpStatusCode.NoContent)
+        {
+            return null;
+        }
+
+        var text = Encoding.UTF8.GetString(payload);
+        var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+        var probablyJson = mediaType.Contains("json", StringComparison.OrdinalIgnoreCase)
+            || text.TrimStart().StartsWith('{')
+            || text.TrimStart().StartsWith('[');
+
+        if (!probablyJson)
+        {
+            return text;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(text);
+            return document.RootElement.Clone();
+        }
+        catch
+        {
+            return text;
+        }
+    }
+
+    private static string? TryGetRequestId(HttpResponseMessage response)
+    {
+        foreach (var headerName in new[] { "X-Request-Id", "x-request-id", "X-Arequestid", "x-arequestid" })
+        {
+            if (response.Headers.TryGetValues(headerName, out var values))
+            {
+                return values.FirstOrDefault();
+            }
+        }
+
+        return null;
+    }
+
+    private void WriteEnvelope(CliEnvelope envelope, OutputPreferences preferences)
+    {
+        var text = preferences.Format == OutputFormat.Text
+            ? outputRenderer.RenderText(envelope, preferences)
+            : outputRenderer.RenderEnvelope(envelope, preferences);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            Console.Out.WriteLine(text);
+        }
     }
 
     private async Task<int> ExecutePaginatedAsync(
         Acjr3Config config,
         RequestCommandOptions options,
         IAppLogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Stopwatch stopwatch)
     {
         var accumulated = new List<JsonElement>();
         JsonElement? rootTemplate = null;
@@ -316,7 +453,7 @@ public sealed class RequestExecutor(
 
             if (!response.IsSuccessStatusCode)
             {
-                return await HandleResponseAsync(response, options with { Paginate = false }, logger, cancellationToken);
+                return await HandleResponseAsync(response, options with { Paginate = false }, cancellationToken, stopwatch);
             }
 
             var payload = await response.Content.ReadAsByteArrayAsync(cancellationToken);
@@ -329,10 +466,11 @@ public sealed class RequestExecutor(
 
             if (!TryExtractPage(root, accumulated, out var nextStartAt, out var done, out var fallbackMessage))
             {
-                Console.Error.WriteLine(fallbackMessage);
-                return await HandleResponseAsync(response, options with { Paginate = false }, logger, cancellationToken);
+                response.Dispose();
+                return WriteValidationError(fallbackMessage, options.Output);
             }
 
+            response.Dispose();
             if (done)
             {
                 break;
@@ -342,13 +480,13 @@ public sealed class RequestExecutor(
         }
 
         var combined = BuildCombinedOutput(rootTemplate!.Value, accumulated);
-        var text = options.Raw
-            ? combined
-            : JsonSerializer.Serialize(JsonSerializer.Deserialize<JsonElement>(combined), new JsonSerializerOptions { WriteIndented = true });
+        using var synthetic = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            ReasonPhrase = "OK",
+            Content = new StringContent(combined, Encoding.UTF8, "application/json")
+        };
 
-        Console.WriteLine("HTTP 200 OK");
-        Console.WriteLine(text);
-        return 0;
+        return await HandleResponseAsync(synthetic, options with { Paginate = false }, cancellationToken, stopwatch);
     }
 
     private static bool TryExtractPage(JsonElement root, List<JsonElement> accumulated, out int nextStartAt, out bool done, out string message)
@@ -359,7 +497,7 @@ public sealed class RequestExecutor(
 
         if (!root.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
         {
-            message = "Pagination structure not recognized (missing values array). Falling back to single request.";
+            message = "Pagination structure not recognized (missing values array).";
             return false;
         }
 
@@ -427,5 +565,4 @@ public sealed class RequestExecutor(
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 }
-
 

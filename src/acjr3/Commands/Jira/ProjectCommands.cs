@@ -33,7 +33,6 @@ public static class ProjectCommands
         var queryOpt = new Option<string?>("--query", "Filter versions by text");
         var statusOpt = new Option<string?>("--status", "Version status filter");
         var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
@@ -43,7 +42,6 @@ public static class ProjectCommands
         list.AddOption(queryOpt);
         list.AddOption(statusOpt);
         list.AddOption(expandOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -52,24 +50,26 @@ public static class ProjectCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
@@ -91,8 +91,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -120,7 +119,6 @@ public static class ProjectCommands
         var statusOpt = new Option<string?>("--status", "Project status filter");
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated project properties");
         var propertyQueryOpt = new Option<string?>("--property-query", "Property query string");
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(startAtOpt);
@@ -136,7 +134,6 @@ public static class ProjectCommands
         list.AddOption(statusOpt);
         list.AddOption(propertiesOpt);
         list.AddOption(propertyQueryOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -145,32 +142,33 @@ public static class ProjectCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
 
             var startAt = parseResult.GetValueForOption(startAtOpt);
             if (startAt.HasValue && startAt.Value < 0)
             {
-                Console.Error.WriteLine("--start-at must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--start-at must be zero or greater.");
                 return;
             }
 
             var maxResults = parseResult.GetValueForOption(maxResultsOpt);
             if (maxResults.HasValue && maxResults.Value <= 0)
             {
-                Console.Error.WriteLine("--max-results must be greater than zero.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--max-results must be greater than zero.");
                 return;
             }
 
             var categoryId = parseResult.GetValueForOption(categoryIdOpt);
             if (categoryId.HasValue && categoryId.Value < 0)
             {
-                Console.Error.WriteLine("--category-id must be zero or greater.");
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, "--category-id must be zero or greater.");
                 return;
             }
 
@@ -198,8 +196,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -238,11 +235,9 @@ public static class ProjectCommands
     {
         var list = new Command("list", "List all components for a project");
         var projectOpt = new Option<string>("--project", "Project key") { IsRequired = true };
-        var rawOpt = new Option<bool>("--raw", "Do not pretty-print JSON response");
         var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
-        list.AddOption(rawOpt);
         list.AddOption(failOnNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -251,8 +246,12 @@ public static class ProjectCommands
             var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
             if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
             {
-                Console.Error.WriteLine(configError);
-                context.ExitCode = 1;
+                CliOutput.WriteValidationError(context, configError);
+                return;
+            }
+
+            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            {
                 return;
             }
             var projectKey = parseResult.GetValueForOption(projectOpt);
@@ -265,8 +264,7 @@ public static class ProjectCommands
                 null,
                 null,
                 null,
-                parseResult.GetValueForOption(rawOpt),
-                false,
+                outputPreferences,
                 (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
                 false,
                 false,
@@ -278,5 +276,8 @@ public static class ProjectCommands
         return list;
     }
 }
+
+
+
 
 

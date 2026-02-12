@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using Acjr3.App;
 
@@ -9,355 +10,519 @@ namespace Acjr3.Tests.Integration;
 public sealed class ProgramE2eTests
 {
     [Fact]
-    public async Task RequestCommand_RetryThenSuccess_WritesOutFile()
+    public async Task RequestCommand_Success_EmitsEnvelope()
     {
         await using var server = new LocalReplayServer();
         server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 429,
-            ReasonPhrase: "Too Many Requests",
-            Headers: new Dictionary<string, string> { ["Retry-After"] = "0", ["Content-Type"] = "application/json" },
-            Body: "{\"error\":\"rate\"}"));
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 200,
-            ReasonPhrase: "OK",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{\"ok\":true}"));
-        await server.StartAsync();
-
-        var outPath = Path.Combine(Path.GetTempPath(), $"acjr3-e2e-{Guid.NewGuid():N}.json");
-        try
-        {
-            var args = new[]
-            {
-                "--site-url", server.BaseUrl,
-                "--auth-mode", "bearer",
-                "--bearer-token", "token",
-                "--timeout-seconds", "5",
-                "--max-retries", "1",
-                "--retry-base-delay-ms", "1",
-                "request", "GET", "/rest/api/3/project",
-                "--raw",
-                "--out", outPath
-            };
-
-            var (exitCode, _, _) = await InvokeProgramAsync(args);
-
-            Assert.Equal(0, exitCode);
-            Assert.Equal(2, server.Requests.Count);
-            Assert.Equal("Bearer token", server.Requests[0].Headers["Authorization"]);
-            Assert.Equal("{\"ok\":true}", await File.ReadAllTextAsync(outPath));
-        }
-        finally
-        {
-            if (File.Exists(outPath))
-            {
-                File.Delete(outPath);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task RequestCommand_NonSuccess_DefaultsToExitOne()
-    {
-        await using var server = new LocalReplayServer();
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 500,
-            ReasonPhrase: "Server Error",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{\"error\":\"boom\"}"));
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"ok\":true}"));
         await server.StartAsync();
 
         var args = new[]
         {
+            "request", "GET", "/rest/api/3/project",
             "--site-url", server.BaseUrl,
             "--auth-mode", "bearer",
-            "--bearer-token", "token",
-            "--max-retries", "0",
-            "request", "GET", "/rest/api/3/project",
-            "--raw"
-        };
-
-        var (exitCode, _, _) = await InvokeProgramAsync(args);
-
-        Assert.Equal(1, exitCode);
-        Assert.Single(server.Requests);
-    }
-
-    [Fact]
-    public async Task RequestCommand_NonSuccess_CanBeAllowedExplicitly()
-    {
-        await using var server = new LocalReplayServer();
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 500,
-            ReasonPhrase: "Server Error",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{\"error\":\"boom\"}"));
-        await server.StartAsync();
-
-        var args = new[]
-        {
-            "--site-url", server.BaseUrl,
-            "--auth-mode", "bearer",
-            "--bearer-token", "token",
-            "--max-retries", "0",
-            "request", "GET", "/rest/api/3/project",
-            "--fail-on-non-success", "false",
-            "--raw"
-        };
-
-        var (exitCode, _, _) = await InvokeProgramAsync(args);
-
-        Assert.Equal(0, exitCode);
-        Assert.Single(server.Requests);
-    }
-
-    [Fact]
-    public async Task RequestCommand_Paginate_MakesMultipleRequests()
-    {
-        await using var server = new LocalReplayServer();
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 200,
-            ReasonPhrase: "OK",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{\"startAt\":0,\"maxResults\":1,\"total\":2,\"values\":[{\"id\":\"1\"}]}"));
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 200,
-            ReasonPhrase: "OK",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{\"startAt\":1,\"maxResults\":1,\"total\":2,\"values\":[{\"id\":\"2\"}]}"));
-        await server.StartAsync();
-
-        var args = new[]
-        {
-            "--site-url", server.BaseUrl,
-            "--auth-mode", "bearer",
-            "--bearer-token", "token",
-            "request", "GET", "/rest/api/3/project",
-            "--paginate",
-            "--raw"
+            "--bearer-token", "token"
         };
 
         var (exitCode, stdout, _) = await InvokeProgramAsync(args);
-
         Assert.Equal(0, exitCode);
-        Assert.Equal(2, server.Requests.Count);
-        Assert.Contains("startAt=0", server.Requests[0].PathAndQuery);
-        Assert.Contains("startAt=1", server.Requests[1].PathAndQuery);
-        Assert.Contains("\"id\":\"1\"", stdout);
-        Assert.Contains("\"id\":\"2\"", stdout);
+        Assert.Contains("\"Success\": true", stdout, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"ok\": true", stdout);
     }
 
     [Fact]
-    public async Task IssueLinkCommand_PostsIssueLinkPayload()
+    public async Task RequestCommand_PostWithoutYes_FailsValidation()
     {
         await using var server = new LocalReplayServer();
         server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 201,
-            ReasonPhrase: "Created",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{}"));
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"ok\":true}"));
+        await server.StartAsync();
+
+        var bodyFile = WriteTempFile("{\"name\":\"x\"}");
+        try
+        {
+            var args = new[]
+            {
+                "request", "POST", "/rest/api/3/project",
+                "--site-url", server.BaseUrl,
+                "--auth-mode", "bearer",
+                "--bearer-token", "token",
+                "--in", bodyFile
+            };
+
+            var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+            Assert.Equal(1, exitCode);
+            Assert.Contains("requires --yes or --force", stdout);
+        }
+        finally
+        {
+            File.Delete(bodyFile);
+        }
+    }
+
+    [Fact]
+    public async Task RequestCommand_PostWithoutExplicitBody_UsesDefaultJsonObject()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"ok\":true}"));
         await server.StartAsync();
 
         var args = new[]
         {
+            "request", "POST", "/rest/api/3/project",
             "--site-url", server.BaseUrl,
             "--auth-mode", "bearer",
             "--bearer-token", "token",
-            "issuelink",
-            "--type", "Blocks",
-            "--inward", "ACJ-123",
-            "--outward", "ACJ-456",
-            "--raw"
+            "--yes"
         };
 
         var (exitCode, _, _) = await InvokeProgramAsync(args);
-
         Assert.Equal(0, exitCode);
-        Assert.Single(server.Requests);
-
-        var request = server.Requests[0];
-        Assert.Equal("POST", request.Method);
-        Assert.Equal("/rest/api/3/issueLink", request.PathAndQuery);
-
-        using var bodyDoc = JsonDocument.Parse(request.Body);
-        Assert.Equal("Blocks", bodyDoc.RootElement.GetProperty("type").GetProperty("name").GetString());
-        Assert.Equal("ACJ-123", bodyDoc.RootElement.GetProperty("inwardIssue").GetProperty("key").GetString());
-        Assert.Equal("ACJ-456", bodyDoc.RootElement.GetProperty("outwardIssue").GetProperty("key").GetString());
+        Assert.NotNull(server.LastRequest);
+        using var body = JsonDocument.Parse(server.LastRequest!.Body);
+        Assert.Equal(JsonValueKind.Object, body.RootElement.ValueKind);
+        Assert.Empty(body.RootElement.EnumerateObject());
     }
 
     [Fact]
-    public async Task IssueCommentAdd_WithBodyAdfFile_WrapsPayloadInBody()
+    public async Task RequestCommand_RejectsMultipleExplicitPayloadSources()
     {
-        await using var server = new LocalReplayServer();
-        server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 201,
-            ReasonPhrase: "Created",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{}"));
-        await server.StartAsync();
-
-        var adfFile = WriteTempJsonFile("""
-            {
-              "type": "doc",
-              "version": 1,
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "ADF comment"
-                    }
-                  ]
-                }
-              ]
-            }
-            """);
-
+        var inFile = WriteTempFile("{\"k\":1}");
         try
         {
             var args = new[]
             {
-                "--site-url", server.BaseUrl,
+                "request", "POST", "/rest/api/3/project",
+                "--site-url", "https://example.atlassian.net",
                 "--auth-mode", "bearer",
                 "--bearer-token", "token",
+                "--body", "{\"a\":1}",
+                "--in", inFile,
+                "--yes"
+            };
+
+            var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Use exactly one explicit payload source", stdout);
+        }
+        finally
+        {
+            File.Delete(inFile);
+        }
+    }
+
+    [Fact]
+    public async Task IssueCreate_WithoutYes_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "create", "ACJ", "--summary", "Needs confirmation",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("requires --yes or --force", stdout);
+    }
+
+    [Fact]
+    public async Task IssueCreate_MissingRequiredFields_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "create",
+            "--yes",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("fields.project.key", stdout);
+    }
+
+    [Fact]
+    public async Task IssueUpdate_WithoutChanges_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "update", "ACJ-1",
+            "--yes",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("at least one issue update operation", stdout);
+    }
+
+    [Fact]
+    public async Task IssueTransition_WithoutTransitionId_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "transition", "ACJ-1",
+            "--yes",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("transition.id", stdout);
+    }
+
+    [Fact]
+    public async Task IssueCommentAdd_WithoutBody_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "comment", "add", "ACJ-1",
+            "--yes",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("non-empty body", stdout);
+    }
+
+    [Fact]
+    public async Task IssueLink_WithoutRequiredFields_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issuelink",
+            "--yes",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("type.name", stdout);
+    }
+
+    [Fact]
+    public async Task JiraShortcut_MissingAuth_MapsToAuthenticationExitCode()
+    {
+        var args = new[]
+        {
+            "issue", "view", "ACJ-1",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", string.Empty
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal((int)CliExitCode.Authentication, exitCode);
+        Assert.Contains("authentication_error", stdout);
+    }
+
+    [Fact]
+    public async Task IssueCreate_BodyFileBase_AllowsSummarySugarOverride()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            201,
+            "Created",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\"}"));
+        await server.StartAsync();
+
+        var bodyFile = WriteTempFile("{\"fields\":{\"project\":{\"key\":\"ACJ\"},\"summary\":\"from-body\",\"issuetype\":{\"name\":\"Task\"}}}");
+        try
+        {
+            var args = new[]
+            {
+                "issue", "create",
+                "--body-file", bodyFile,
+                "--summary", "from-sugar",
+                "--yes",
+                "--site-url", server.BaseUrl,
+                "--auth-mode", "bearer",
+                "--bearer-token", "token"
+            };
+
+            var (exitCode, _, _) = await InvokeProgramAsync(args);
+            Assert.Equal(0, exitCode);
+            Assert.NotNull(server.LastRequest);
+            using var body = JsonDocument.Parse(server.LastRequest!.Body);
+            Assert.Equal("from-sugar", body.RootElement.GetProperty("fields").GetProperty("summary").GetString());
+        }
+        finally
+        {
+            File.Delete(bodyFile);
+        }
+    }
+
+    [Fact]
+    public async Task IssueCommentAdd_WithInTextAndYes_Succeeds()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            201,
+            "Created",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\"}"));
+        await server.StartAsync();
+
+        var bodyFile = WriteTempFile("Comment from file");
+        try
+        {
+            var args = new[]
+            {
                 "issue", "comment", "add", "ACJ-123",
-                "--body-adf-file", adfFile,
-                "--raw"
+                "--in", bodyFile,
+                "--input-format", "text",
+                "--yes",
+                "--site-url", server.BaseUrl,
+                "--auth-mode", "bearer",
+                "--bearer-token", "token"
             };
 
-            var (exitCode, _, _) = await InvokeProgramAsync(args);
-
+            var (exitCode, stdout, _) = await InvokeProgramAsync(args);
             Assert.Equal(0, exitCode);
-            Assert.Single(server.Requests);
-
-            var request = server.Requests[0];
-            Assert.Equal("POST", request.Method);
-            Assert.Equal("/rest/api/3/issue/ACJ-123/comment", request.PathAndQuery);
-
-            using var bodyDoc = JsonDocument.Parse(request.Body);
-            var wrappedBody = bodyDoc.RootElement.GetProperty("body");
-            Assert.Equal("doc", wrappedBody.GetProperty("type").GetString());
-            Assert.Equal(1, wrappedBody.GetProperty("version").GetInt32());
+            Assert.Contains("\"Success\": true", stdout, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"id\": \"10001\"", stdout);
         }
         finally
         {
-            File.Delete(adfFile);
+            File.Delete(bodyFile);
         }
     }
 
     [Fact]
-    public async Task IssueUpdate_WithFieldAdfFile_WrapsPayloadInNamedField()
+    public async Task IssueTransition_BodyBase_AllowsIdSugarOverride()
     {
         await using var server = new LocalReplayServer();
         server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 204,
-            ReasonPhrase: "No Content",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: string.Empty));
+            204,
+            "No Content",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            string.Empty));
         await server.StartAsync();
 
-        var adfFile = WriteTempJsonFile("""
-            {
-              "type": "doc",
-              "version": 1,
-              "content": []
-            }
-            """);
-
+        var bodyFile = WriteTempFile("{\"transition\":{\"id\":\"11\"}}");
         try
         {
             var args = new[]
             {
+                "issue", "transition", "ACJ-123",
+                "--body-file", bodyFile,
+                "--id", "31",
+                "--yes",
                 "--site-url", server.BaseUrl,
                 "--auth-mode", "bearer",
-                "--bearer-token", "token",
-                "issue", "update", "ACJ-123",
-                "--field", "customfield_123",
-                "--field-adf-file", adfFile,
-                "--raw"
+                "--bearer-token", "token"
             };
 
             var (exitCode, _, _) = await InvokeProgramAsync(args);
-
             Assert.Equal(0, exitCode);
-            Assert.Single(server.Requests);
-
-            var request = server.Requests[0];
-            Assert.Equal("PUT", request.Method);
-            Assert.Equal("/rest/api/3/issue/ACJ-123", request.PathAndQuery);
-
-            using var bodyDoc = JsonDocument.Parse(request.Body);
-            var adfField = bodyDoc.RootElement.GetProperty("fields").GetProperty("customfield_123");
-            Assert.Equal("doc", adfField.GetProperty("type").GetString());
-            Assert.Equal(1, adfField.GetProperty("version").GetInt32());
+            Assert.NotNull(server.LastRequest);
+            using var body = JsonDocument.Parse(server.LastRequest!.Body);
+            Assert.Equal("31", body.RootElement.GetProperty("transition").GetProperty("id").GetString());
         }
         finally
         {
-            File.Delete(adfFile);
+            File.Delete(bodyFile);
         }
     }
 
     [Fact]
-    public async Task IssueCreate_WithPositionalProjectAndDescriptionAdfFile_WrapsDescription()
+    public async Task IssueLink_BodyBase_AllowsSugarOverrides()
     {
         await using var server = new LocalReplayServer();
         server.EnqueueResponse(new ReplayResponse(
-            StatusCode: 201,
-            ReasonPhrase: "Created",
-            Headers: new Dictionary<string, string> { ["Content-Type"] = "application/json" },
-            Body: "{}"));
+            201,
+            "Created",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"ok\":true}"));
         await server.StartAsync();
 
-        var adfFile = WriteTempJsonFile("""
-            {
-              "type": "doc",
-              "version": 1,
-              "content": []
-            }
-            """);
-
+        var bodyFile = WriteTempFile("{\"type\":{\"name\":\"Blocks\"},\"inwardIssue\":{\"key\":\"ACJ-1\"},\"outwardIssue\":{\"key\":\"ACJ-2\"}}");
         try
         {
             var args = new[]
             {
+                "issuelink",
+                "--body-file", bodyFile,
+                "--outward", "ACJ-99",
+                "--yes",
                 "--site-url", server.BaseUrl,
                 "--auth-mode", "bearer",
-                "--bearer-token", "token",
-                "issue", "create", "ACJ",
-                "--type", "Task",
-                "--summary", "Task summary",
-                "--description-adf-file", adfFile,
-                "--assignee", "account-id-123",
-                "--raw"
+                "--bearer-token", "token"
             };
 
             var (exitCode, _, _) = await InvokeProgramAsync(args);
-
             Assert.Equal(0, exitCode);
-            Assert.Single(server.Requests);
-
-            var request = server.Requests[0];
-            Assert.Equal("POST", request.Method);
-            Assert.Equal("/rest/api/3/issue", request.PathAndQuery);
-
-            using var bodyDoc = JsonDocument.Parse(request.Body);
-            var fields = bodyDoc.RootElement.GetProperty("fields");
-            Assert.Equal("ACJ", fields.GetProperty("project").GetProperty("key").GetString());
-            Assert.Equal("Task summary", fields.GetProperty("summary").GetString());
-            Assert.Equal("Task", fields.GetProperty("issuetype").GetProperty("name").GetString());
-            Assert.Equal("account-id-123", fields.GetProperty("assignee").GetProperty("accountId").GetString());
-            Assert.Equal("doc", fields.GetProperty("description").GetProperty("type").GetString());
+            Assert.NotNull(server.LastRequest);
+            using var body = JsonDocument.Parse(server.LastRequest!.Body);
+            Assert.Equal("ACJ-99", body.RootElement.GetProperty("outwardIssue").GetProperty("key").GetString());
+            Assert.Equal("ACJ-1", body.RootElement.GetProperty("inwardIssue").GetProperty("key").GetString());
         }
         finally
         {
-            File.Delete(adfFile);
+            File.Delete(bodyFile);
         }
     }
 
-    private static string WriteTempJsonFile(string content)
+    [Fact]
+    public async Task RequestCommand_Explain_WritesRequestSummary()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"acjr3-json-{Guid.NewGuid():N}.json");
+        var args = new[]
+        {
+            "request", "GET", "/rest/api/3/myself",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token",
+            "--query", "expand=groups",
+            "--explain"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"method\": \"GET\"", stdout);
+        Assert.Contains("\"path\": \"/rest/api/3/myself\"", stdout);
+    }
+
+    [Fact]
+    public async Task RequestCommand_Replay_UsesRecordedPayload()
+    {
+        var bodyFile = WriteTempFile("{\"name\":\"replay-test\"}");
+        var replayFile = WriteTempFile(string.Empty);
+        try
+        {
+            var explainArgs = new[]
+            {
+                "request", "POST", "/rest/api/3/project",
+                "--site-url", "https://example.atlassian.net",
+                "--auth-mode", "bearer",
+                "--bearer-token", "token",
+                "--query", "expand=description",
+                "--header", "X-Test=1",
+                "--in", bodyFile,
+                "--input-format", "json",
+                "--request-file", replayFile,
+                "--explain",
+                "--yes"
+            };
+
+            var (explainExitCode, _, _) = await InvokeProgramAsync(explainArgs);
+            Assert.Equal(0, explainExitCode);
+
+            var recorded = JsonSerializer.Deserialize<RecordedRequest>(File.ReadAllText(replayFile));
+            Assert.NotNull(recorded);
+            Assert.Equal("POST", recorded!.Method);
+            Assert.Equal("/rest/api/3/project", recorded.Path);
+            Assert.Contains(recorded.Query, q => q.Key == "expand" && q.Value == "description");
+            Assert.Contains(recorded.Headers, h => h.Key == "X-Test" && h.Value == "1");
+            Assert.Equal("{\"name\":\"replay-test\"}", recorded.Body);
+
+            await using var server = new LocalReplayServer();
+            server.EnqueueResponse(new ReplayResponse(
+                200,
+                "OK",
+                new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+                "{\"ok\":true}"));
+            await server.StartAsync();
+
+            var replayArgs = new[]
+            {
+                "request", "--replay", replayFile,
+                "--site-url", server.BaseUrl,
+                "--auth-mode", "bearer",
+                "--bearer-token", "token",
+                "--yes"
+            };
+
+            var (replayExitCode, stdout, _) = await InvokeProgramAsync(replayArgs);
+            Assert.Equal(0, replayExitCode);
+            Assert.Contains("\"Success\": true", stdout, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(bodyFile);
+            File.Delete(replayFile);
+        }
+    }
+
+    [Fact]
+    public async Task CapabilitiesCommand_EmitsExitCodeContract()
+    {
+        var (exitCode, stdout, _) = await InvokeProgramAsync(["capabilities"]);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"exitCodes\"", stdout);
+        Assert.Contains("\"10\": \"Internal / tool-specific\"", stdout);
+    }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("request --help")]
+    [InlineData("issue create --help")]
+    [InlineData("issue update --help")]
+    [InlineData("issue comment add --help")]
+    [InlineData("config init --help")]
+    [InlineData("openapi --help")]
+    [InlineData("doctor --help")]
+    [InlineData("schema --help")]
+    public async Task HelpOutput_HasNoDuplicateOptionRows(string commandLine)
+    {
+        var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+
+        var optionRows = Regex.Matches(stdout, @"^\s{2,}--[a-z0-9-]+", RegexOptions.Multiline | RegexOptions.IgnoreCase)
+            .Select(m => m.Value.Trim())
+            .ToList();
+
+        var duplicate = optionRows
+            .GroupBy(v => v, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(g => g.Count() > 1);
+
+        Assert.True(duplicate is null, $"Duplicate option row found: {duplicate?.Key}");
+    }
+
+    [Theory]
+    [InlineData("request --help")]
+    [InlineData("issue create --help")]
+    [InlineData("issue update --help")]
+    [InlineData("issue transition --help")]
+    [InlineData("issue comment add --help")]
+    [InlineData("issue comment update --help")]
+    [InlineData("issuelink --help")]
+    public async Task HelpOutput_IncludesBodyPayloadOptions(string commandLine)
+    {
+        var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--body", stdout);
+        Assert.Contains("--body-file", stdout);
+    }
+
+    private static string WriteTempFile(string content)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acjr3-e2e-{Guid.NewGuid():N}.json");
         File.WriteAllText(path, content);
         return path;
     }
@@ -409,20 +574,31 @@ public sealed class ProgramE2eTests
 [CollectionDefinition("ProgramE2e", DisableParallelization = true)]
 public sealed class ProgramE2eCollection;
 
-internal sealed record ReplayRequest(string Method, string PathAndQuery, IReadOnlyDictionary<string, string> Headers, string Body);
-
 internal sealed record ReplayResponse(int StatusCode, string ReasonPhrase, IReadOnlyDictionary<string, string> Headers, string Body);
+internal sealed record ReplayNameValue(string Key, string Value);
+internal sealed record RecordedRequest(string Method, string Path, List<ReplayNameValue> Query, List<ReplayNameValue> Headers, string Accept, string? ContentType, string? Body);
+internal sealed record ReplayRequest(string Method, string Path, string Body, IReadOnlyDictionary<string, string> Headers);
 
 internal sealed class LocalReplayServer : IAsyncDisposable
 {
     private readonly TcpListener listener = new(System.Net.IPAddress.Loopback, 0);
     private readonly Queue<ReplayResponse> responses = new();
+    private readonly List<ReplayRequest> requests = [];
     private readonly CancellationTokenSource cts = new();
+    private readonly object sync = new();
     private Task? loopTask;
 
-    public List<ReplayRequest> Requests { get; } = [];
-
     public string BaseUrl { get; private set; } = string.Empty;
+    public ReplayRequest? LastRequest
+    {
+        get
+        {
+            lock (sync)
+            {
+                return requests.Count == 0 ? null : requests[^1];
+            }
+        }
+    }
 
     public void EnqueueResponse(ReplayResponse response) => responses.Enqueue(response);
 
@@ -459,20 +635,17 @@ internal sealed class LocalReplayServer : IAsyncDisposable
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
-        using var _ = client;
+        using var clientHandle = client;
         using var stream = client.GetStream();
         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
         using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { NewLine = "\r\n", AutoFlush = true };
 
         var requestLine = await reader.ReadLineAsync(cancellationToken);
-        if (string.IsNullOrWhiteSpace(requestLine))
-        {
-            return;
-        }
+        var requestParts = (requestLine ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var method = requestParts.Length > 0 ? requestParts[0] : string.Empty;
+        var path = requestParts.Length > 1 ? requestParts[1] : string.Empty;
 
-        var requestParts = requestLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
         while (true)
         {
             var line = await reader.ReadLineAsync(cancellationToken);
@@ -481,13 +654,15 @@ internal sealed class LocalReplayServer : IAsyncDisposable
                 break;
             }
 
-            var idx = line.IndexOf(':');
-            if (idx <= 0)
+            var separatorIndex = line.IndexOf(':');
+            if (separatorIndex <= 0)
             {
                 continue;
             }
 
-            headers[line[..idx].Trim()] = line[(idx + 1)..].Trim();
+            var key = line[..separatorIndex].Trim();
+            var value = line[(separatorIndex + 1)..].Trim();
+            headers[key] = value;
         }
 
         var body = string.Empty;
@@ -495,25 +670,26 @@ internal sealed class LocalReplayServer : IAsyncDisposable
             && int.TryParse(contentLengthRaw, out var contentLength)
             && contentLength > 0)
         {
-            var buffer = new char[contentLength];
+            var bodyBuffer = new char[contentLength];
             var read = 0;
             while (read < contentLength)
             {
-                var chunk = await reader.ReadAsync(buffer.AsMemory(read, contentLength - read), cancellationToken);
-                if (chunk == 0)
+                var count = await reader.ReadBlockAsync(bodyBuffer.AsMemory(read, contentLength - read), cancellationToken);
+                if (count == 0)
                 {
                     break;
                 }
 
-                read += chunk;
+                read += count;
             }
 
-            body = new string(buffer, 0, read);
+            body = new string(bodyBuffer, 0, read);
         }
 
-        var method = requestParts.Length > 0 ? requestParts[0] : "GET";
-        var pathAndQuery = requestParts.Length > 1 ? requestParts[1] : "/";
-        Requests.Add(new ReplayRequest(method, pathAndQuery, headers, body));
+        lock (sync)
+        {
+            requests.Add(new ReplayRequest(method, path, body, headers));
+        }
 
         if (responses.Count == 0)
         {
@@ -528,7 +704,6 @@ internal sealed class LocalReplayServer : IAsyncDisposable
     {
         var bodyBytes = Encoding.UTF8.GetBytes(response.Body);
         await writer.WriteLineAsync($"HTTP/1.1 {response.StatusCode} {response.ReasonPhrase}");
-
         foreach (var header in response.Headers)
         {
             await writer.WriteLineAsync($"{header.Key}: {header.Value}");
@@ -539,11 +714,7 @@ internal sealed class LocalReplayServer : IAsyncDisposable
             await writer.WriteLineAsync($"Content-Length: {bodyBytes.Length}");
         }
 
-        if (!response.Headers.ContainsKey("Connection"))
-        {
-            await writer.WriteLineAsync("Connection: close");
-        }
-
+        await writer.WriteLineAsync("Connection: close");
         await writer.WriteLineAsync();
         await writer.BaseStream.WriteAsync(bodyBytes);
         await writer.BaseStream.FlushAsync();

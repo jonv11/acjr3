@@ -5,7 +5,7 @@
 It is built for:
 - direct REST access via `acjr3 request ...`
 - lightweight shortcut commands for common Jira operations
-- predictable behavior (config validation, retries, clean output)
+- agent-safe behavior (structured output, deterministic exit codes, strict validation)
 
 ## Quick start
 
@@ -15,15 +15,36 @@ dotnet test acjr3.sln
 dotnet run --project src/acjr3 -- --help
 ```
 
-## Preferred Jira payload style
+## CLI Output Contract
 
-For Jira issue descriptions and comments, prefer ADF-file options over raw JSON payload wrappers:
+- Default output is a JSON envelope on `stdout`: `success`, `data`, `error`, `meta`.
+- Use `--format json|jsonl|text` to switch output format.
+- Use `--pretty` or `--compact` for JSON style.
+- Use `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, and `--plain` for output shaping.
+- Exit codes are deterministic:
+  - `0` success
+  - `1` validation/bad arguments
+  - `2` authentication/authorization
+  - `3` not found
+  - `4` conflict/business rule
+  - `5` network/timeout
+  - `10+` internal/tool-specific
 
-- `acjr3 issue create <PROJECT> --summary "..." --description-adf-file <description.adf.json>`
-- `acjr3 issue update <KEY> --field description --field-adf-file <description.adf.json>`
-- `acjr3 issue comment add <KEY> --body-adf-file <comment.adf.json>`
+## Preferred Input Style
 
-Use `--body` or `--body-file` when you need advanced/multi-field payloads that go beyond one description/comment content object.
+For `request`, use canonical input flags:
+
+- `--in <file|->`
+- `--input-format json|adf|md|text`
+- Optional JSON base shortcuts: `--body '<json-object>'`, `--body-file <path>`
+- `--in`, `--body`, and `--body-file` are mutually exclusive
+- For `POST|PUT|PATCH`, if no explicit payload source is provided, `request` sends `{}`.
+
+For Jira issue description/comment field payloads:
+
+- `acjr3 issue create <PROJECT> --summary "..." --description-file <description.adf.json> --description-format adf --yes`
+- `acjr3 issue update <KEY> --field description --field-file <description.adf.json> --field-format adf --yes`
+- `acjr3 issue comment add <KEY> --in <comment.adf.json> --input-format adf --yes`
 
 ## Navigation
 

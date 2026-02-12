@@ -32,6 +32,7 @@ Use this index to find small, task-focused docs.
 - [commands/request.md](commands/request.md)
 - [commands/jira-shortcuts.md](commands/jira-shortcuts.md)
 - [commands/openapi.md](commands/openapi.md)
+- [commands/agent-capabilities.md](commands/agent-capabilities.md)
 - [commands/completion.md](commands/completion.md)
 
 ### Workflows
@@ -49,5 +50,5 @@ Use this index to find small, task-focused docs.
 - Keep docs short.
 - Keep examples runnable.
 - Prefer linking over duplicating content.
-- Prefer ADF-file shortcuts (`--description-adf-file`, `--field-adf-file`, `--body-adf-file`) for Jira description/comment content when possible.
+- Prefer canonical mutating input (`--in ... --input-format ... --yes|--force`) and use field-specific helpers (`--description-file ... --description-format adf`, `--field-file ... --field-format adf`) when appropriate.
 - Keep docs aligned with current code in `src/acjr3`.
