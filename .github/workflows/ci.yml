@@ -7,6 +7,9 @@ on:
     - master
   pull_request:
 
+env:
+  COVERAGE_MIN_LINE: "60"
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -41,6 +44,33 @@ jobs:
         "-reports:TestResults/**/coverage.cobertura.xml"
         "-targetdir:TestResults/CoverageReport"
         "-reporttypes:HtmlInline;Cobertura;TextSummary"
+
+    - name: Enforce minimum line coverage
+      shell: pwsh
+      run: |
+        $coverageFile = "TestResults/CoverageReport/Cobertura.xml"
+        if (-not (Test-Path $coverageFile)) {
+          Write-Error "Coverage report not found at $coverageFile."
+          exit 1
+        }
+
+        [xml]$coverageXml = Get-Content $coverageFile
+        $lineRate = [double]::Parse(
+          [string]$coverageXml.coverage.'line-rate',
+          [System.Globalization.CultureInfo]::InvariantCulture)
+        $lineCoverage = [math]::Round($lineRate * 100, 2)
+        $threshold = [double]::Parse(
+          $env:COVERAGE_MIN_LINE,
+          [System.Globalization.CultureInfo]::InvariantCulture)
+
+        "### Coverage gate" >> $env:GITHUB_STEP_SUMMARY
+        "- Line coverage: $lineCoverage%" >> $env:GITHUB_STEP_SUMMARY
+        "- Required minimum: $threshold%" >> $env:GITHUB_STEP_SUMMARY
+
+        if ($lineCoverage -lt $threshold) {
+          Write-Error "Line coverage $lineCoverage% is below required minimum $threshold%."
+          exit 1
+        }
 
     - name: Publish test and coverage artifacts
       uses: actions/upload-artifact@v4
