@@ -23,15 +23,7 @@ public static class FieldCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -83,15 +75,7 @@ public static class FieldCommands
 
         search.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -111,14 +95,14 @@ public static class FieldCommands
             }
 
             var query = new List<KeyValuePair<string, string>>();
-            AddIntQuery(query, "startAt", startAt);
-            AddIntQuery(query, "maxResults", maxResults);
-            AddStringQuery(query, "type", parseResult.GetValueForOption(typeOpt));
-            AddStringQuery(query, "id", parseResult.GetValueForOption(idOpt));
-            AddStringQuery(query, "query", parseResult.GetValueForOption(queryOpt));
-            AddStringQuery(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
-            AddStringQuery(query, "expand", parseResult.GetValueForOption(expandOpt));
-            AddStringQuery(query, "projectIds", parseResult.GetValueForOption(projectIdsOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "type", parseResult.GetValueForOption(typeOpt));
+            JiraQueryBuilder.AddString(query, "id", parseResult.GetValueForOption(idOpt));
+            JiraQueryBuilder.AddString(query, "query", parseResult.GetValueForOption(queryOpt));
+            JiraQueryBuilder.AddString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
+            JiraQueryBuilder.AddString(query, "expand", parseResult.GetValueForOption(expandOpt));
+            JiraQueryBuilder.AddString(query, "projectIds", parseResult.GetValueForOption(projectIdsOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -141,23 +125,8 @@ public static class FieldCommands
 
         return search;
     }
-
-    private static void AddStringQuery(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddIntQuery(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
 }
+
 
 
 

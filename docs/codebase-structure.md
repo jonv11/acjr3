@@ -6,7 +6,7 @@ This layout is designed for growth with clear boundaries.
 
 ## Source (`src/acjr3`)
 
-- `App/`: application entrypoint and command wiring (`Program.cs`)
+- `App/`: application entrypoint (`Program.cs`) and root command wiring (`RootCommandFactory.cs`)
 - `Commands/`: CLI command groups
 - `Commands/Jira/`: Jira-focused command wrappers
 - `Configuration/`: environment config loading and validation

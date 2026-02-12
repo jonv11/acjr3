@@ -1,8 +1,10 @@
 # Essential Coverage Testing Guide
 
-Navigation: [Docs Home](../README.md) | [Commands Index](README.md) | [Coverage Roadmap](essential-coverage-priority.md)
+Navigation: [Archive](../README.md) | [Validation Index](README.md) | [Coverage Roadmap](essential-coverage-priority.md)
 
-This guide defines the manual validation workflow for `docs/commands/essential-coverage-priority.md` and serves as a handoff log.
+Historical note: This guide is archived context and not an operational source of truth.
+
+This guide defines the manual validation workflow for `essential-coverage-priority.md` and serves as a handoff log.
 
 ## Safety Rules
 

@@ -1,13 +1,8 @@
 # acjr3
 
-`acjr3` is a .NET 8 CLI proxy for Jira Cloud REST API v3.
+`acjr3` is a .NET 8 CLI proxy for Jira Cloud REST API v3. It provides a universal `request` command plus Jira shortcut commands with consistent JSON envelopes, deterministic exit codes, and strict validation for mutating operations.
 
-It is built for:
-- direct REST access via `acjr3 request ...`
-- lightweight shortcut commands for common Jira operations
-- agent-safe behavior (structured output, deterministic exit codes, strict validation)
-
-## Quick start
+## Quickstart
 
 ```bash
 dotnet build acjr3.sln
@@ -15,79 +10,64 @@ dotnet test acjr3.sln
 dotnet run --project src/acjr3 -- --help
 ```
 
-## CLI Output Contract
+## Most Common Workflows
 
-- Default output is a JSON envelope on `stdout`: `success`, `data`, `error`, `meta`.
-- Use `--format json|jsonl|text` to switch output format.
-- Use `--pretty` or `--compact` for JSON style.
-- Use `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, and `--plain` for output shaping.
-- Exit codes are deterministic:
-  - `0` success
-  - `1` validation/bad arguments
-  - `2` authentication/authorization
-  - `3` not found
-  - `4` conflict/business rule
-  - `5` network/timeout
-  - `10+` internal/tool-specific
+Run these after setting required environment variables.
 
-## Preferred Input Style
-
-For `request`, use canonical input flags:
-
-- `--in <file|->`
-- `--input-format json|adf|md|text`
-- Optional JSON base shortcuts: `--body '<json-object>'`, `--body-file <path>`
-- `--in`, `--body`, and `--body-file` are mutually exclusive
-- For `POST|PUT|PATCH`, if no explicit payload source is provided, `request` sends `{}`.
-
-For Jira issue description/comment field payloads:
-
-- `acjr3 issue create <PROJECT> --summary "..." --description-file <description.adf.json> --description-format adf --yes`
-- `acjr3 issue update <KEY> --field description --field-file <description.adf.json> --field-format adf --yes`
-- `acjr3 issue comment add <KEY> --in <comment.adf.json> --input-format adf --yes`
-
-## Navigation
-
-- Project docs hub: [docs/README.md](docs/README.md)
-- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Command reference index: [docs/commands/README.md](docs/commands/README.md)
-- Use-case playbooks index: [docs/use-cases/README.md](docs/use-cases/README.md)
-
-## Packaging
-
-Local single-file self-contained publish:
+1. Validate configuration and auth
 
 ```bash
-dotnet publish src/acjr3/acjr3.csproj -c Release -p:PublishProfile=SingleFileSelfContained -r linux-x64 --self-contained true
+dotnet run --project src/acjr3 -- config check
 ```
 
-GitHub Actions:
-- `CI` workflow: build + test + coverage artifact
-- `Release` workflow: cross-platform packaged artifacts on `v*` tags (and optional release publishing)
+2. Search issues
 
-## Documentation
+```bash
+dotnet run --project src/acjr3 -- search list --jql "project = ACJ ORDER BY updated DESC" --max-results 20 --compact
+```
 
-### Start Here
+3. View one issue
 
-- Documentation hub: [docs/README.md](docs/README.md)
+```bash
+dotnet run --project src/acjr3 -- issue view ACJ-123 --fields "summary,status,assignee,priority" --compact
+```
+
+4. Create an issue
+
+```bash
+dotnet run --project src/acjr3 -- issue create ACJ --summary "Investigate API timeout" --type Task --yes --fail-on-non-success
+```
+
+5. Add a comment
+
+```bash
+dotnet run --project src/acjr3 -- issue comment add ACJ-123 --text "Working on this now." --yes --fail-on-non-success
+```
+
+## Configuration And Auth
+
+Configuration is environment-variable based, with optional per-invocation runtime overrides on API/runtime commands.
+
+- Canonical reference: [docs/configuration.md](docs/configuration.md)
 - Getting started: [docs/getting-started.md](docs/getting-started.md)
-- Configuration and auth: [docs/configuration.md](docs/configuration.md)
 
-### Commands
+## Output And Exit Codes
 
-- Command index: [docs/commands/README.md](docs/commands/README.md)
-- Universal request command: [docs/commands/request.md](docs/commands/request.md)
-- Jira shortcuts: [docs/commands/jira-shortcuts.md](docs/commands/jira-shortcuts.md)
-- OpenAPI helpers: [docs/commands/openapi.md](docs/commands/openapi.md)
-- Shell completion: [docs/commands/completion.md](docs/commands/completion.md)
+- Default output is a JSON envelope: `success`, `data`, `error`, `meta`.
+- Formats: `--format json|jsonl|text`
+- JSON style: `--pretty` or `--compact`
+- Output shaping: `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, `--plain`
+- Exit codes: `0` success, `1` validation, `2` auth/authz, `3` not found, `4` conflict, `5` network/timeout, `10+` internal/tool-specific
 
-### Workflows And Internals
+See [docs/behavior.md](docs/behavior.md) for the full runtime contract.
 
+## Docs
+
+- Docs hub: [docs/README.md](docs/README.md)
+- Command reference: [docs/commands/README.md](docs/commands/README.md)
 - Use-case playbooks: [docs/use-cases/README.md](docs/use-cases/README.md)
-- Runtime behavior and limits: [docs/behavior.md](docs/behavior.md)
-- Codebase structure: [docs/codebase-structure.md](docs/codebase-structure.md)
-- Documentation conventions: [docs/doc-conventions.md](docs/doc-conventions.md)
+- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## External reference
+## External Reference
 
 - Jira Cloud REST API v3: https://developer.atlassian.com/cloud/jira/platform/rest/v3

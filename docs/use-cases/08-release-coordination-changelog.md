@@ -55,8 +55,9 @@ acjr3 issue comment add ACJ-501 --in release-notes-comment.adf.json --input-form
 6. Optional version management via generic request API.
 
 ```bash
+VERSION_ID=10001
 acjr3 request POST /rest/api/3/version --in create-version.json --input-format json --yes --fail-on-non-success
-acjr3 request PUT /rest/api/3/version/<VERSION_ID> --in release-version.json --input-format json --yes --fail-on-non-success
+acjr3 request PUT /rest/api/3/version/$VERSION_ID --in release-version.json --input-format json --yes --fail-on-non-success
 ```
 
 ## Accuracy notes

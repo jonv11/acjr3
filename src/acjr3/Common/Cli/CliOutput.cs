@@ -6,7 +6,6 @@ namespace Acjr3.Common;
 public static class CliOutput
 {
     private const string EnvelopeVersion = "1.0";
-    private static readonly OutputRenderer Renderer = new();
 
     public static void WriteValidationError(InvocationContext context, string message, object? details = null, string? hint = null)
     {
@@ -43,12 +42,7 @@ public static class CliOutput
             Data: null,
             Error: new CliError(errorCode, message, details, hint),
             Meta: new CliMeta(EnvelopeVersion, null, null, null, null, null));
-
-        var text = preferences.Format == OutputFormat.Text
-            ? Renderer.RenderText(envelope, preferences)
-            : Renderer.RenderEnvelope(envelope, preferences);
-        Console.Out.WriteLine(text);
-        context.ExitCode = (int)exitCode;
+        CliEnvelopeOutputWriter.Write(context, services: null, preferences, envelope, (int)exitCode);
     }
 
     private static bool LooksLikeAuthenticationError(string message)

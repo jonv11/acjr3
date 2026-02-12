@@ -32,7 +32,8 @@ For issue description/comment content, prefer canonical input options:
 - Optional JSON base shortcuts: `--body '<json-object>'` and `--body-file <PATH>`
 - `--in`, `--body`, and `--body-file` are mutually exclusive
 - `--yes` or `--force` for mutating issue shortcuts
-- Additional field helpers:
+
+Additional field helpers:
 - `--description-file <PATH> --description-format adf`
 - `--field <FIELD_KEY> --field-file <PATH> --field-format adf`
 
@@ -43,5 +44,7 @@ For issue description/comment content, prefer canonical input options:
 - [OpenAPI helpers](openapi.md)
 - [Agent capabilities](agent-capabilities.md)
 - [Shell completion](completion.md)
-- [Essential coverage priority](essential-coverage-priority.md)
-- [Essential coverage testing guide](essential-coverage-testing-guide.md)
+
+## Archive
+
+- Historical validation docs: [../archive/validation/README.md](../archive/validation/README.md)

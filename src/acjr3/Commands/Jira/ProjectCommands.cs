@@ -46,15 +46,7 @@ public static class ProjectCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -75,12 +67,12 @@ public static class ProjectCommands
 
             var projectKey = parseResult.GetValueForOption(projectOpt);
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
-            AddQueryString(query, "query", parseResult.GetValueForOption(queryOpt));
-            AddQueryString(query, "status", parseResult.GetValueForOption(statusOpt));
-            AddQueryString(query, "expand", parseResult.GetValueForOption(expandOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
+            JiraQueryBuilder.AddString(query, "query", parseResult.GetValueForOption(queryOpt));
+            JiraQueryBuilder.AddString(query, "status", parseResult.GetValueForOption(statusOpt));
+            JiraQueryBuilder.AddString(query, "expand", parseResult.GetValueForOption(expandOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -138,15 +130,7 @@ public static class ProjectCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -173,19 +157,19 @@ public static class ProjectCommands
             }
 
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
-            AddQueryString(query, "id", parseResult.GetValueForOption(idOpt));
-            AddQueryString(query, "keys", parseResult.GetValueForOption(keysOpt));
-            AddQueryString(query, "query", parseResult.GetValueForOption(queryOpt));
-            AddQueryString(query, "typeKey", parseResult.GetValueForOption(typeKeyOpt));
-            AddQueryInt(query, "categoryId", categoryId);
-            AddQueryString(query, "action", parseResult.GetValueForOption(actionOpt));
-            AddQueryString(query, "expand", parseResult.GetValueForOption(expandOpt));
-            AddQueryString(query, "status", parseResult.GetValueForOption(statusOpt));
-            AddQueryString(query, "properties", parseResult.GetValueForOption(propertiesOpt));
-            AddQueryString(query, "propertyQuery", parseResult.GetValueForOption(propertyQueryOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "orderBy", parseResult.GetValueForOption(orderByOpt));
+            JiraQueryBuilder.AddString(query, "id", parseResult.GetValueForOption(idOpt));
+            JiraQueryBuilder.AddString(query, "keys", parseResult.GetValueForOption(keysOpt));
+            JiraQueryBuilder.AddString(query, "query", parseResult.GetValueForOption(queryOpt));
+            JiraQueryBuilder.AddString(query, "typeKey", parseResult.GetValueForOption(typeKeyOpt));
+            JiraQueryBuilder.AddInt(query, "categoryId", categoryId);
+            JiraQueryBuilder.AddString(query, "action", parseResult.GetValueForOption(actionOpt));
+            JiraQueryBuilder.AddString(query, "expand", parseResult.GetValueForOption(expandOpt));
+            JiraQueryBuilder.AddString(query, "status", parseResult.GetValueForOption(statusOpt));
+            JiraQueryBuilder.AddString(query, "properties", parseResult.GetValueForOption(propertiesOpt));
+            JiraQueryBuilder.AddString(query, "propertyQuery", parseResult.GetValueForOption(propertyQueryOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -207,23 +191,6 @@ public static class ProjectCommands
         });
         return list;
     }
-
-    private static void AddQueryString(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddQueryInt(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
-
     private static Command BuildComponentCommand(IServiceProvider services)
     {
         var component = new Command("component", "Component-related commands for a project");
@@ -242,15 +209,7 @@ public static class ProjectCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -276,6 +235,7 @@ public static class ProjectCommands
         return list;
     }
 }
+
 
 
 

@@ -34,15 +34,7 @@ public static class GroupCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -62,12 +54,12 @@ public static class GroupCommands
             }
 
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "groupId", parseResult.GetValueForOption(groupIdOpt));
-            AddQueryString(query, "groupName", parseResult.GetValueForOption(groupNameOpt));
-            AddQueryString(query, "accessType", parseResult.GetValueForOption(accessTypeOpt));
-            AddQueryString(query, "applicationKey", parseResult.GetValueForOption(applicationKeyOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "groupId", parseResult.GetValueForOption(groupIdOpt));
+            JiraQueryBuilder.AddString(query, "groupName", parseResult.GetValueForOption(groupNameOpt));
+            JiraQueryBuilder.AddString(query, "accessType", parseResult.GetValueForOption(accessTypeOpt));
+            JiraQueryBuilder.AddString(query, "applicationKey", parseResult.GetValueForOption(applicationKeyOpt));
 
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
@@ -89,23 +81,8 @@ public static class GroupCommands
         });
         return list;
     }
-
-    private static void AddQueryString(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddQueryInt(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
 }
+
 
 
 

@@ -8,6 +8,7 @@ Use this index to find small, task-focused docs.
 - Contributor guide: [../CONTRIBUTING.md](../CONTRIBUTING.md)
 - Commands index: [commands/README.md](commands/README.md)
 - Use-case playbooks index: [use-cases/README.md](use-cases/README.md)
+- Archive (historical context): [archive/README.md](archive/README.md)
 
 ## Quick Paths
 
@@ -18,6 +19,7 @@ Use this index to find small, task-focused docs.
 - Scenario playbooks: [use-cases/README.md](use-cases/README.md)
 - Understanding runtime behavior: [behavior.md](behavior.md)
 - Navigating source/tests: [codebase-structure.md](codebase-structure.md)
+- Historical context (non-operational): [archive/README.md](archive/README.md)
 
 ## By Topic
 

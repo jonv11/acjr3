@@ -45,7 +45,7 @@ Mirror source domains in tests.
 When adding/changing a command:
 
 1. Update implementation under `src/acjr3/Commands/...`.
-2. Register command in `src/acjr3/App/Program.cs` (if new root/group command).
+2. Register command in `src/acjr3/App/RootCommandFactory.cs` (if new root/group command).
 3. Update docs:
 - `docs/commands/jira-shortcuts.md` for Jira shortcut commands
 - `docs/commands/request.md` if universal request behavior changes

@@ -20,6 +20,10 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
   - `--page`
   - `--all`
   - `--plain`
+- Output option constraints:
+  - `--plain` is only valid with text output when `--format` is explicitly set (for example, `--format text --plain`).
+  - `--pretty` and `--compact` are mutually exclusive.
+  - `--format text` cannot be combined with `--pretty` or `--compact`.
 - Payload is emitted on `stdout`. Diagnostics remain on `stderr`.
 
 ## Exit Codes

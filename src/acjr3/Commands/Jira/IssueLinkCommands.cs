@@ -36,15 +36,7 @@ public static class IssueLinkCommands
 
         issueLink.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -196,6 +188,7 @@ public static class IssueLinkCommands
         return true;
     }
 }
+
 
 
 

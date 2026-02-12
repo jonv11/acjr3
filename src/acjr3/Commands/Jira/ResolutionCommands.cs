@@ -30,15 +30,7 @@ public static class ResolutionCommands
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -64,12 +56,12 @@ public static class ResolutionCommands
             }
 
             var query = new List<KeyValuePair<string, string>>();
-            AddQueryInt(query, "startAt", startAt);
-            AddQueryInt(query, "maxResults", maxResults);
-            AddQueryString(query, "id", parseResult.GetValueForOption(idOpt));
+            JiraQueryBuilder.AddInt(query, "startAt", startAt);
+            JiraQueryBuilder.AddInt(query, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(query, "id", parseResult.GetValueForOption(idOpt));
             if (onlyDefault.HasValue)
             {
-                query.Add(new KeyValuePair<string, string>("onlyDefault", onlyDefault.Value ? "true" : "false"));
+                JiraQueryBuilder.AddBoolean(query, "onlyDefault", onlyDefault);
             }
 
             var options = new RequestCommandOptions(
@@ -110,23 +102,8 @@ public static class ResolutionCommands
         value = parsed;
         return true;
     }
-
-    private static void AddQueryString(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddQueryInt(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
 }
+
 
 
 

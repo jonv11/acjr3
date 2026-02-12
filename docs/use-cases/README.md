@@ -25,17 +25,6 @@ Prefer small, reversible edits.
 When changing workflow-sensitive fields (status, priority, assignee, sprint), add a short audit comment.
 For issue descriptions/comments, prefer `--description-file <PATH> --description-format adf`, `--field ... --field-file <PATH> --field-format adf`, and `--in <PATH> --input-format adf --yes` over ad hoc payload shaping.
 
-## Sugaring priorities
-
-Prioritized command sugar opportunities based on playbook order and frequency:
-
-1. `acjr3 issue update`: add targeted flags for common fields (`--priority`, `--labels-add`, `--labels-remove`, `--due-date`, `--fix-version`, `--story-points`) to reduce generic `--in <PATH>` payload usage in triage, planning, execution, release, and hygiene flows.
-2. `acjr3 issue create`: add common creation flags (`--labels`, `--priority`, `--components`, `--due-date`) so fewer scenarios require raw request-body JSON files.
-3. `acjr3 issue transition`: add optional inline update/comment sugar (for example `--comment`, optional `--resolution`) for one-step state changes with audit notes.
-4. `acjr3 project version create` and `acjr3 project version update`: add dedicated shortcuts so release workflows do not need `acjr3 request` for version lifecycle operations.
-5. `acjr3 issue attach`: add first-class attachment support to cover evidence and artifact-heavy flows currently blocked on external tooling.
-6. `acjr3 issuelink delete`: add link-removal sugar (by link ID) for dependency cleanup workflows that currently only support easy link creation.
-
 ## Files
 
 1. [Ticket triage and inbox processing](01-ticket-triage-inbox-processing.md)

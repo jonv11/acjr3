@@ -34,15 +34,7 @@ public static class UserCommands
         search.AddOption(verboseOpt);
         search.SetHandler(async (InvocationContext context) =>
         {
-            var parseResult = context.ParseResult;
-            var logger = new ConsoleLogger(parseResult.GetValueForOption(verboseOpt));
-            if (!Program.TryLoadValidatedConfig(requireAuth: true, logger, out var config, out var configError))
-            {
-                CliOutput.WriteValidationError(context, configError);
-                return;
-            }
-
-            if (!OutputOptionBinding.TryResolveOrReport(parseResult, context, out var outputPreferences))
+            if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
             {
                 return;
             }
@@ -74,12 +66,12 @@ public static class UserCommands
             }
 
             var queryParams = new List<KeyValuePair<string, string>>();
-            AddStringQuery(queryParams, "query", query);
-            AddStringQuery(queryParams, "username", username);
-            AddStringQuery(queryParams, "accountId", accountId);
-            AddIntQuery(queryParams, "startAt", startAt);
-            AddIntQuery(queryParams, "maxResults", maxResults);
-            AddStringQuery(queryParams, "property", property);
+            JiraQueryBuilder.AddString(queryParams, "query", query);
+            JiraQueryBuilder.AddString(queryParams, "username", username);
+            JiraQueryBuilder.AddString(queryParams, "accountId", accountId);
+            JiraQueryBuilder.AddInt(queryParams, "startAt", startAt);
+            JiraQueryBuilder.AddInt(queryParams, "maxResults", maxResults);
+            JiraQueryBuilder.AddString(queryParams, "property", property);
             var options = new RequestCommandOptions(
                 System.Net.Http.HttpMethod.Get,
                 "/rest/api/3/user/search",
@@ -100,23 +92,8 @@ public static class UserCommands
         });
         return search;
     }
-
-    private static void AddStringQuery(List<KeyValuePair<string, string>> query, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            query.Add(new KeyValuePair<string, string>(key, value));
-        }
-    }
-
-    private static void AddIntQuery(List<KeyValuePair<string, string>> query, string key, int? value)
-    {
-        if (value.HasValue)
-        {
-            query.Add(new KeyValuePair<string, string>(key, value.Value.ToString()));
-        }
-    }
 }
+
 
 
 

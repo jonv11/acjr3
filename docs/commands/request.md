@@ -34,6 +34,11 @@ For mutating methods (`POST`, `PUT`, `PATCH`), if no explicit payload source is 
 - `--pretty` or `--compact`
 - `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, `--plain`
 
+Constraints:
+- `--plain` is only valid with text output when `--format` is explicitly set (for example, `--format text --plain`).
+- `--pretty` and `--compact` are mutually exclusive.
+- `--format text` cannot be combined with `--pretty` or `--compact`.
+
 ## Execution / Safety Options
 
 - `--fail-on-non-success` (default `true`)
