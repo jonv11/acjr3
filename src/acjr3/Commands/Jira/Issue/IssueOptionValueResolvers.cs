@@ -21,7 +21,7 @@ public static partial class IssueCommands
         descriptionValue = descriptionInline;
 
         var effectiveFile = descriptionFile;
-        var effectiveFormat = descriptionFormat ?? "text";
+        var effectiveFormat = descriptionFormat ?? "adf";
 
         if (string.IsNullOrWhiteSpace(effectiveFile))
         {
@@ -45,26 +45,23 @@ public static partial class IssueCommands
             return false;
         }
 
-        if (parsedFormat == DescriptionFileFormat.Text)
-        {
-            try
-            {
-                descriptionValue = TextFileInput.ReadAllTextNormalized(effectiveFile);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                CliOutput.WriteValidationError(context, $"Failed to read --description-file '{effectiveFile}': {ex.Message}");
-                return false;
-            }
-        }
-
-        if (!TryReadJsonObjectFile(effectiveFile, "--description-file", context, out var descriptionAdf))
+        if (!TryReadJsonFile(effectiveFile!, "--description-file", context, out var parsedDescriptionValue))
         {
             return false;
         }
 
-        descriptionValue = descriptionAdf;
+        if (parsedFormat == DescriptionFileFormat.Adf
+            && !TryValidateAdfDocument(
+                parsedDescriptionValue,
+                "--description-file",
+                effectiveFile!,
+                "--description-format",
+                context))
+        {
+            return false;
+        }
+
+        descriptionValue = parsedDescriptionValue;
         return true;
     }
 
@@ -82,7 +79,7 @@ public static partial class IssueCommands
         fieldValue = null;
 
         var effectiveFile = fieldFile;
-        var effectiveFormat = fieldFormat ?? "json";
+        var effectiveFormat = fieldFormat ?? "adf";
 
         var hasName = !string.IsNullOrWhiteSpace(fieldName);
         var hasFile = !string.IsNullOrWhiteSpace(effectiveFile);
@@ -115,13 +112,85 @@ public static partial class IssueCommands
             return false;
         }
 
-        if (parsedFormat == FieldFileFormat.Adf && parsedFieldValue.ValueKind != JsonValueKind.Object)
+        if (parsedFormat == FieldFileFormat.Adf
+            && !TryValidateAdfDocument(
+                parsedFieldValue,
+                "--field-file",
+                effectiveFile!,
+                "--field-format",
+                context))
         {
-            CliOutput.WriteValidationError(context, $"--field-file '{effectiveFile}' must contain a JSON object when --field-format adf is used.");
             return false;
         }
 
         fieldValue = parsedFieldValue;
+        return true;
+    }
+
+    private static bool TryResolveCommentBodyValue(
+        string? textInline,
+        string? textFile,
+        string? textFormat,
+        bool formatOptionSpecified,
+        bool textOptionSpecified,
+        InvocationContext context,
+        out JsonNode? commentBodyValue)
+    {
+        commentBodyValue = null;
+
+        var effectiveFile = textFile;
+        var effectiveFormat = textFormat ?? "adf";
+        var hasTextFile = !string.IsNullOrWhiteSpace(effectiveFile);
+
+        if (!hasTextFile && !textOptionSpecified)
+        {
+            if (formatOptionSpecified)
+            {
+                CliOutput.WriteValidationError(context, "--text-format requires --text-file.");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (hasTextFile && textOptionSpecified)
+        {
+            CliOutput.WriteValidationError(context, "Use either --text or --text-file, not both.");
+            return false;
+        }
+
+        if (!hasTextFile)
+        {
+            if (!string.IsNullOrWhiteSpace(textInline))
+            {
+                commentBodyValue = BuildCommentAdfTextNode(textInline);
+            }
+
+            return true;
+        }
+
+        if (!TryParseCommentTextFormat(effectiveFormat, context, out var parsedFormat))
+        {
+            return false;
+        }
+
+        if (!TryReadJsonFile(effectiveFile!, "--text-file", context, out var parsedCommentValue))
+        {
+            return false;
+        }
+
+        if (parsedFormat == CommentTextFileFormat.Adf
+            && !TryValidateAdfDocument(
+                parsedCommentValue,
+                "--text-file",
+                effectiveFile!,
+                "--text-format",
+                context))
+        {
+            return false;
+        }
+
+        commentBodyValue = JsonNode.Parse(parsedCommentValue.GetRawText());
         return true;
     }
 
@@ -144,24 +213,6 @@ public static partial class IssueCommands
         return true;
     }
 
-    private static bool TryReadJsonObjectFile(string filePath, string optionName, InvocationContext context, out JsonElement jsonObject)
-    {
-        jsonObject = default;
-        if (!TryReadJsonFile(filePath, optionName, context, out var parsed))
-        {
-            return false;
-        }
-
-        if (parsed.ValueKind != JsonValueKind.Object)
-        {
-            CliOutput.WriteValidationError(context, $"{optionName} file '{filePath}' must contain a JSON object.");
-            return false;
-        }
-
-        jsonObject = parsed;
-        return true;
-    }
-
     private static bool TryReadJsonFile(string filePath, string optionName, InvocationContext context, out JsonElement jsonValue)
     {
         jsonValue = default;
@@ -179,59 +230,50 @@ public static partial class IssueCommands
         }
     }
 
-    private static bool TryParseJsonElement(string json, string optionName, InvocationContext context, out JsonElement value)
+    private static bool TryValidateAdfDocument(
+        JsonElement value,
+        string fileOptionName,
+        string filePath,
+        string formatOptionName,
+        InvocationContext context)
     {
-        value = default;
-        try
+        if (value.ValueKind != JsonValueKind.Object)
         {
-            using var doc = JsonDocument.Parse(json);
-            value = doc.RootElement.Clone();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            CliOutput.WriteValidationError(context, $"Failed to parse {optionName} payload: {ex.Message}");
+            CliOutput.WriteValidationError(
+                context,
+                $"{fileOptionName} '{filePath}' must contain an ADF document object (type='doc', numeric version, array content) when {formatOptionName} adf is used.");
             return false;
         }
 
-    }
-
-    private static bool TryNormalizeIssueInputPayload(string? payload, InputFormat format, InvocationContext context, out string? normalizedBody)
-    {
-        normalizedBody = payload;
-        if (string.IsNullOrWhiteSpace(payload))
+        if (!value.TryGetProperty("type", out var typeElement)
+            || typeElement.ValueKind != JsonValueKind.String
+            || !string.Equals(typeElement.GetString(), "doc", StringComparison.Ordinal))
         {
-            return true;
+            CliOutput.WriteValidationError(
+                context,
+                $"{fileOptionName} '{filePath}' must contain an ADF document object (type='doc', numeric version, array content) when {formatOptionName} adf is used.");
+            return false;
         }
 
-        if (format == InputFormat.Adf)
+        if (!value.TryGetProperty("version", out var versionElement)
+            || versionElement.ValueKind != JsonValueKind.Number)
         {
-            if (!TryParseJsonElement(payload, "--in", context, out var adfValue))
-            {
-                return false;
-            }
-
-            normalizedBody = JsonSerializer.Serialize(adfValue);
-            return true;
+            CliOutput.WriteValidationError(
+                context,
+                $"{fileOptionName} '{filePath}' must contain an ADF document object (type='doc', numeric version, array content) when {formatOptionName} adf is used.");
+            return false;
         }
 
-        return true;
-    }
-
-    private static bool TryNormalizeTransitionInputPayload(string? payload, InputFormat format, InvocationContext context, out string? normalizedBody)
-    {
-        normalizedBody = payload;
-        if (string.IsNullOrWhiteSpace(payload))
+        if (!value.TryGetProperty("content", out var contentElement)
+            || contentElement.ValueKind != JsonValueKind.Array)
         {
-            return true;
-        }
-
-        if (format == InputFormat.Markdown || format == InputFormat.Text)
-        {
-            CliOutput.WriteValidationError(context, "--input-format for issue transition --in must be json or adf.");
+            CliOutput.WriteValidationError(
+                context,
+                $"{fileOptionName} '{filePath}' must contain an ADF document object (type='doc', numeric version, array content) when {formatOptionName} adf is used.");
             return false;
         }
 
         return true;
     }
+
 }

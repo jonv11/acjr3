@@ -16,9 +16,9 @@ public static class RoleCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira roles");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -37,7 +37,7 @@ public static class RoleCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -48,6 +48,7 @@ public static class RoleCommands
         return list;
     }
 }
+
 
 
 

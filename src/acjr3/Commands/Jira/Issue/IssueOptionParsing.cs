@@ -20,38 +20,53 @@ public static partial class IssueCommands
 
     private static bool TryParseDescriptionFormat(string raw, InvocationContext context, out DescriptionFileFormat format)
     {
-        format = DescriptionFileFormat.Text;
-        if (raw.Equals("text", StringComparison.OrdinalIgnoreCase))
+        format = DescriptionFileFormat.Json;
+        if (!InputResolver.TryParseFormat(raw, "--description-format", out var inputFormat, out var error))
         {
-            return true;
+            CliOutput.WriteValidationError(context, error);
+            return false;
         }
 
-        if (raw.Equals("adf", StringComparison.OrdinalIgnoreCase))
+        if (inputFormat == InputFormat.Adf)
         {
             format = DescriptionFileFormat.Adf;
-            return true;
         }
 
-        CliOutput.WriteValidationError(context, "--description-format must be one of: text, adf.");
-        return false;
+        return true;
     }
 
     private static bool TryParseFieldFormat(string raw, InvocationContext context, out FieldFileFormat format)
     {
         format = FieldFileFormat.Json;
-        if (raw.Equals("json", StringComparison.OrdinalIgnoreCase))
+        if (!InputResolver.TryParseFormat(raw, "--field-format", out var inputFormat, out var error))
         {
-            return true;
+            CliOutput.WriteValidationError(context, error);
+            return false;
         }
 
-        if (raw.Equals("adf", StringComparison.OrdinalIgnoreCase))
+        if (inputFormat == InputFormat.Adf)
         {
             format = FieldFileFormat.Adf;
-            return true;
         }
 
-        CliOutput.WriteValidationError(context, "--field-format must be one of: json, adf.");
-        return false;
+        return true;
+    }
+
+    private static bool TryParseCommentTextFormat(string raw, InvocationContext context, out CommentTextFileFormat format)
+    {
+        format = CommentTextFileFormat.Json;
+        if (!InputResolver.TryParseFormat(raw, "--text-format", out var inputFormat, out var error))
+        {
+            CliOutput.WriteValidationError(context, error);
+            return false;
+        }
+
+        if (inputFormat == InputFormat.Adf)
+        {
+            format = CommentTextFileFormat.Adf;
+        }
+
+        return true;
     }
 
     private static bool TryParseBooleanOption(string? raw, string optionName, InvocationContext context, out bool? value)

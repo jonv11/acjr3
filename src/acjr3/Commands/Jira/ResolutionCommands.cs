@@ -20,13 +20,13 @@ public static class ResolutionCommands
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of resolutions to return");
         var idOpt = new Option<string?>("--id", "Comma-separated resolution IDs");
         var onlyDefaultOpt = new Option<string?>("--only-default", "Filter default resolutions only (true|false)");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(idOpt);
         list.AddOption(onlyDefaultOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -74,7 +74,7 @@ public static class ResolutionCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -103,6 +103,7 @@ public static class ResolutionCommands
         return true;
     }
 }
+
 
 
 

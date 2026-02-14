@@ -18,7 +18,7 @@ public static partial class IssueCommands
         var issueTypeIdsOpt = new Option<string?>("--issuetype-ids", "Comma-separated issue type IDs");
         var issueTypeNamesOpt = new Option<string?>("--issuetype-names", "Comma-separated issue type names");
         var expandOpt = new Option<string?>("--expand", "Expand create metadata fields");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         createMeta.AddOption(projectIdsOpt);
@@ -26,7 +26,7 @@ public static partial class IssueCommands
         createMeta.AddOption(issueTypeIdsOpt);
         createMeta.AddOption(issueTypeNamesOpt);
         createMeta.AddOption(expandOpt);
-        createMeta.AddOption(failOnNonSuccessOpt);
+        createMeta.AddOption(allowNonSuccessOpt);
         createMeta.AddOption(verboseOpt);
 
         createMeta.SetHandler(async (InvocationContext context) =>
@@ -53,7 +53,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -71,13 +71,13 @@ public static partial class IssueCommands
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Override screen security (true|false)");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         editMeta.AddArgument(keyArg);
         editMeta.AddOption(overrideScreenSecurityOpt);
         editMeta.AddOption(overrideEditableFlagOpt);
-        editMeta.AddOption(failOnNonSuccessOpt);
+        editMeta.AddOption(allowNonSuccessOpt);
         editMeta.AddOption(verboseOpt);
 
         editMeta.SetHandler(async (InvocationContext context) =>
@@ -108,7 +108,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -121,4 +121,5 @@ public static partial class IssueCommands
     }
 
 }
+
 

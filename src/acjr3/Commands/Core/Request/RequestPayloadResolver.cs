@@ -6,74 +6,41 @@ namespace Acjr3.Commands.Core;
 
 internal static class RequestPayloadResolver
 {
-    public static async Task<(bool Ok, string? Payload, bool PayloadFromDefaultJson, InputFormat InputFormat, ExplicitPayloadSource PayloadSource, string? Error)> ResolveAsync(
+    public static async Task<(bool Ok, string? Payload, string? Error)> ResolveAsync(
         ParseResult parseResult,
         RequestCommandSymbols symbols,
         HttpMethod httpMethod,
         CancellationToken cancellationToken)
     {
-        if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(symbols.InputFormatOpt), out var inputFormat, out var formatError))
-        {
-            return (false, null, false, default, default, formatError);
-        }
-
-        if (!InputResolver.TryResolveExplicitPayloadSource(
-                parseResult.GetValueForOption(symbols.InOpt),
-                parseResult.GetValueForOption(symbols.BodyOpt),
-                parseResult.GetValueForOption(symbols.BodyFileOpt),
-                out var payloadSource,
-                out var payloadSourceError))
-        {
-            return (false, null, false, default, default, payloadSourceError);
-        }
-
         string? payloadValue = null;
-        var payloadFromDefaultJson = false;
-        switch (payloadSource)
+        var inPath = parseResult.GetValueForOption(symbols.InOpt);
+        if (!string.IsNullOrWhiteSpace(inPath))
         {
-            case ExplicitPayloadSource.In:
+            var payloadLoad = await InputResolver.TryReadPayloadAsync(inPath, cancellationToken);
+            if (!payloadLoad.Ok)
             {
-                var payloadLoad = await InputResolver.TryReadPayloadAsync(parseResult.GetValueForOption(symbols.InOpt), inputFormat, cancellationToken);
-                if (!payloadLoad.Ok)
-                {
-                    return (false, null, false, default, default, payloadLoad.Error);
-                }
-
-                payloadValue = payloadLoad.Payload;
-                break;
+                return (false, null, payloadLoad.Error);
             }
-            case ExplicitPayloadSource.Body:
-            case ExplicitPayloadSource.BodyFile:
+
+            if (string.IsNullOrWhiteSpace(payloadLoad.Payload))
             {
-                var bodyLoad = await InputResolver.TryReadBodyPayloadAsync(
-                    parseResult.GetValueForOption(symbols.BodyOpt),
-                    parseResult.GetValueForOption(symbols.BodyFileOpt),
-                    cancellationToken);
-                if (!bodyLoad.Ok)
-                {
-                    return (false, null, false, default, default, bodyLoad.Error);
-                }
-
-                var optionName = payloadSource == ExplicitPayloadSource.Body ? "--body" : "--body-file";
-                if (!JsonPayloadPipeline.TryParseJsonObject(bodyLoad.Payload!, optionName, out var parsedBody, out var parseBodyError))
-                {
-                    return (false, null, false, default, default, parseBodyError);
-                }
-
-                payloadValue = JsonPayloadPipeline.Serialize(parsedBody!);
-                break;
+                return (false, null, "--in was provided but no payload was read.");
             }
-            default:
-                break;
+
+            if (!JsonPayloadPipeline.TryParseJsonObject(payloadLoad.Payload, "--in", out var parsedInPayload, out var parseInError))
+            {
+                return (false, null, parseInError);
+            }
+
+            payloadValue = JsonPayloadPipeline.Serialize(parsedInPayload!);
         }
 
         if (string.IsNullOrWhiteSpace(payloadValue) && IsMutatingMethod(httpMethod))
         {
             payloadValue = "{}";
-            payloadFromDefaultJson = true;
         }
 
-        return (true, payloadValue, payloadFromDefaultJson, inputFormat, payloadSource, null);
+        return (true, payloadValue, null);
     }
 
     private static bool IsMutatingMethod(HttpMethod method)

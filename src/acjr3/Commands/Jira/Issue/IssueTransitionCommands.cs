@@ -12,28 +12,22 @@ public static partial class IssueCommands
 {
     private static Command BuildTransitionCommand(IServiceProvider services)
     {
-        var transition = new Command("transition", "Issue transition commands (POST /rest/api/3/issue/{issueIdOrKey}/transitions). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var transition = new Command("transition", "Issue transition commands (POST /rest/api/3/issue/{issueIdOrKey}/transitions). Starts from a default payload, optional --in base payload, then applies sugar flags.");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var toOpt = new Option<string?>("--to", "Target transition name (for example, Done)");
         var idOpt = new Option<string?>("--id", "Target transition ID");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         transition.AddArgument(keyArg);
         transition.AddOption(toOpt);
         transition.AddOption(idOpt);
-        transition.AddOption(bodyOpt);
-        transition.AddOption(bodyFileOpt);
         transition.AddOption(inOpt);
-        transition.AddOption(inputFormatOpt);
         transition.AddOption(yesOpt);
         transition.AddOption(forceOpt);
-        transition.AddOption(failOnNonSuccessOpt);
+        transition.AddOption(allowNonSuccessOpt);
         transition.AddOption(verboseOpt);
         transition.SetHandler(async (InvocationContext context) =>
         {
@@ -45,29 +39,9 @@ public static partial class IssueCommands
             var key = parseResult.GetValueForArgument(keyArg);
             var to = parseResult.GetValueForOption(toOpt);
             var id = parseResult.GetValueForOption(idOpt);
-            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
-            {
-                CliOutput.WriteValidationError(context, formatError);
-                return;
-            }
-
-            if (!InputResolver.TryResolveExplicitPayloadSource(
-                    parseResult.GetValueForOption(inOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    out var payloadSource,
-                    out var sourceError))
-            {
-                CliOutput.WriteValidationError(context, sourceError);
-                return;
-            }
 
             var transitionBasePayload = await TryResolveIssueTransitionBasePayloadAsync(
                 parseResult.GetValueForOption(inOpt),
-                parseResult.GetValueForOption(bodyOpt),
-                parseResult.GetValueForOption(bodyFileOpt),
-                inputFormat,
-                payloadSource,
                 context,
                 context.GetCancellationToken());
             if (!transitionBasePayload.Ok)
@@ -120,7 +94,7 @@ public static partial class IssueCommands
                 JsonPayloadPipeline.Serialize(payloadObject),
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
@@ -142,7 +116,7 @@ public static partial class IssueCommands
         var skipRemoteOnlyConditionOpt = new Option<string?>("--skip-remote-only-condition", "Skip remote-only condition check (true|false)");
         var includeUnavailableTransitionsOpt = new Option<string?>("--include-unavailable-transitions", "Include unavailable transitions (true|false)");
         var sortByOpsBarAndStatusOpt = new Option<string?>("--sort-by-ops-bar-and-status", "Sort by ops bar and status (true|false)");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         list.AddArgument(keyArg);
@@ -151,7 +125,7 @@ public static partial class IssueCommands
         list.AddOption(skipRemoteOnlyConditionOpt);
         list.AddOption(includeUnavailableTransitionsOpt);
         list.AddOption(sortByOpsBarAndStatusOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
 
         list.SetHandler(async (InvocationContext context) =>
@@ -186,7 +160,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);

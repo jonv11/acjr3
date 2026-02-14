@@ -24,29 +24,27 @@ public static partial class IssueCommands
 
     private static Command BuildCommentAddCommand(IServiceProvider services)
     {
-        var add = new Command("add", "Add a comment to an issue (POST /rest/api/3/issue/{issueIdOrKey}/comment). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var add = new Command("add", "Add a comment to an issue (POST /rest/api/3/issue/{issueIdOrKey}/comment). Starts from a default payload, optional --in base payload, then applies sugar flags.");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var textOpt = new Option<string?>("--text", "Comment text");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var textFileOpt = new Option<string?>("--text-file", "Read comment body node from file path");
+        var textFormatOpt = new Option<string>("--text-format", () => "adf", "Comment text file format: json|adf");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         add.AddArgument(keyArg);
         add.AddOption(textOpt);
-        add.AddOption(bodyOpt);
-        add.AddOption(bodyFileOpt);
+        add.AddOption(textFileOpt);
+        add.AddOption(textFormatOpt);
         add.AddOption(inOpt);
-        add.AddOption(inputFormatOpt);
         add.AddOption(expandOpt);
         add.AddOption(yesOpt);
         add.AddOption(forceOpt);
-        add.AddOption(failOnNonSuccessOpt);
+        add.AddOption(allowNonSuccessOpt);
         add.AddOption(verboseOpt);
 
         add.SetHandler(async (InvocationContext context) =>
@@ -56,29 +54,8 @@ public static partial class IssueCommands
                 return;
             }
 
-            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
-            {
-                CliOutput.WriteValidationError(context, formatError);
-                return;
-            }
-
-            if (!InputResolver.TryResolveExplicitPayloadSource(
-                    parseResult.GetValueForOption(inOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    out var payloadSource,
-                    out var sourceError))
-            {
-                CliOutput.WriteValidationError(context, sourceError);
-                return;
-            }
-
             var addCommentBasePayload = await TryResolveCommentBasePayloadAsync(
                 parseResult.GetValueForOption(inOpt),
-                parseResult.GetValueForOption(bodyOpt),
-                parseResult.GetValueForOption(bodyFileOpt),
-                inputFormat,
-                payloadSource,
                 context,
                 context.GetCancellationToken());
             if (!addCommentBasePayload.Ok)
@@ -87,10 +64,21 @@ public static partial class IssueCommands
             }
             var payloadObject = addCommentBasePayload.Payload!;
 
-            var text = parseResult.GetValueForOption(textOpt);
-            if (!string.IsNullOrWhiteSpace(text))
+            if (!TryResolveCommentBodyValue(
+                    parseResult.GetValueForOption(textOpt),
+                    parseResult.GetValueForOption(textFileOpt),
+                    parseResult.GetValueForOption(textFormatOpt),
+                    WasOptionSupplied(parseResult, "--text-format"),
+                    WasOptionSupplied(parseResult, "--text"),
+                    context,
+                    out var resolvedBodyValue))
             {
-                JsonPayloadPipeline.SetNode(payloadObject, BuildCommentAdfTextNode(text), "body");
+                return;
+            }
+
+            if (resolvedBodyValue is not null)
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, resolvedBodyValue, "body");
             }
 
             if (!HasValidCommentBody(payloadObject))
@@ -113,7 +101,7 @@ public static partial class IssueCommands
                 JsonPayloadPipeline.Serialize(payloadObject),
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
@@ -128,35 +116,33 @@ public static partial class IssueCommands
 
     private static Command BuildCommentUpdateCommand(IServiceProvider services)
     {
-        var update = new Command("update", "Update an issue comment (PUT /rest/api/3/issue/{issueIdOrKey}/comment/{id}). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var update = new Command("update", "Update an issue comment (PUT /rest/api/3/issue/{issueIdOrKey}/comment/{id}). Starts from a default payload, optional --in base payload, then applies sugar flags.");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
         var textOpt = new Option<string?>("--text", "Comment text");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
+        var textFileOpt = new Option<string?>("--text-file", "Read comment body node from file path");
+        var textFormatOpt = new Option<string>("--text-format", () => "adf", "Comment text file format: json|adf");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var notifyUsersOpt = new Option<string?>("--notify-users", "Notify users (true|false)");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         update.AddArgument(keyArg);
         update.AddArgument(idArg);
         update.AddOption(textOpt);
-        update.AddOption(bodyOpt);
-        update.AddOption(bodyFileOpt);
+        update.AddOption(textFileOpt);
+        update.AddOption(textFormatOpt);
         update.AddOption(inOpt);
-        update.AddOption(inputFormatOpt);
         update.AddOption(notifyUsersOpt);
         update.AddOption(overrideEditableFlagOpt);
         update.AddOption(expandOpt);
         update.AddOption(yesOpt);
         update.AddOption(forceOpt);
-        update.AddOption(failOnNonSuccessOpt);
+        update.AddOption(allowNonSuccessOpt);
         update.AddOption(verboseOpt);
 
         update.SetHandler(async (InvocationContext context) =>
@@ -166,29 +152,8 @@ public static partial class IssueCommands
                 return;
             }
 
-            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
-            {
-                CliOutput.WriteValidationError(context, formatError);
-                return;
-            }
-
-            if (!InputResolver.TryResolveExplicitPayloadSource(
-                    parseResult.GetValueForOption(inOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    out var payloadSource,
-                    out var sourceError))
-            {
-                CliOutput.WriteValidationError(context, sourceError);
-                return;
-            }
-
             var updateCommentBasePayload = await TryResolveCommentBasePayloadAsync(
                 parseResult.GetValueForOption(inOpt),
-                parseResult.GetValueForOption(bodyOpt),
-                parseResult.GetValueForOption(bodyFileOpt),
-                inputFormat,
-                payloadSource,
                 context,
                 context.GetCancellationToken());
             if (!updateCommentBasePayload.Ok)
@@ -197,10 +162,21 @@ public static partial class IssueCommands
             }
             var payloadObject = updateCommentBasePayload.Payload!;
 
-            var text = parseResult.GetValueForOption(textOpt);
-            if (!string.IsNullOrWhiteSpace(text))
+            if (!TryResolveCommentBodyValue(
+                    parseResult.GetValueForOption(textOpt),
+                    parseResult.GetValueForOption(textFileOpt),
+                    parseResult.GetValueForOption(textFormatOpt),
+                    WasOptionSupplied(parseResult, "--text-format"),
+                    WasOptionSupplied(parseResult, "--text"),
+                    context,
+                    out var resolvedBodyValue))
             {
-                JsonPayloadPipeline.SetNode(payloadObject, BuildCommentAdfTextNode(text), "body");
+                return;
+            }
+
+            if (resolvedBodyValue is not null)
+            {
+                JsonPayloadPipeline.SetNode(payloadObject, resolvedBodyValue, "body");
             }
 
             if (!HasValidCommentBody(payloadObject))
@@ -232,7 +208,7 @@ public static partial class IssueCommands
                 JsonPayloadPipeline.Serialize(payloadObject),
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
@@ -252,14 +228,14 @@ public static partial class IssueCommands
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         delete.AddArgument(keyArg);
         delete.AddArgument(idArg);
         delete.AddOption(yesOpt);
         delete.AddOption(forceOpt);
-        delete.AddOption(failOnNonSuccessOpt);
+        delete.AddOption(allowNonSuccessOpt);
         delete.AddOption(verboseOpt);
 
         delete.SetHandler(async (InvocationContext context) =>
@@ -281,7 +257,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));

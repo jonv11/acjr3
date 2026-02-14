@@ -28,19 +28,19 @@ Navigation: [Docs Home](../README.md) | [Repository Home](../../README.md) | [Us
 - `acjr3 resolution ...`
 
 For issue description/comment content, prefer canonical input options:
-- `--in <PATH|-> --input-format json|adf|md|text`
-- Optional JSON base shortcuts: `--body '<json-object>'` and `--body-file <PATH>`
-- `--in`, `--body`, and `--body-file` are mutually exclusive
+- `--in <PATH|->` (JSON payload object)
 - `--yes` or `--force` for mutating issue shortcuts
 
 Additional field helpers:
-- `--description-file <PATH> --description-format adf`
-- `--field <FIELD_KEY> --field-file <PATH> --field-format adf`
+- `--description-file <PATH> --description-format json|adf`
+- `--field <FIELD_KEY> --field-file <PATH> --field-format json|adf`
+- `--text-file <PATH> --text-format adf|json` (for `issue comment add|update`)
 
 ## Detailed pages
 
 - [Request command](request.md)
 - [Jira shortcuts](jira-shortcuts.md)
+- Jira shortcut practical examples (comments, issue transition, issue delete): see [Jira shortcuts](jira-shortcuts.md)
 - [OpenAPI helpers](openapi.md)
 - [Agent capabilities](agent-capabilities.md)
 - [Shell completion](completion.md)

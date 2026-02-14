@@ -34,26 +34,26 @@ acjr3 issue view ACJ-222 --fields "status,priority,duedate,issuelinks,subtasks" 
 3. Start the top unblocked item.
 
 ```bash
-acjr3 issue transition ACJ-222 --to "In Progress" --yes --fail-on-non-success
+acjr3 issue transition ACJ-222 --to "In Progress" --yes --allow-non-success
 ```
 
 4. Post concise status (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-222 --in daily-status-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-222 --text-file daily-status-comment.adf.json --yes
 ```
 
 5. If blocked, transition and escalate quickly.
 
 ```bash
-acjr3 issue transition ACJ-222 --to "Blocked" --yes --fail-on-non-success
-acjr3 issue comment add ACJ-222 --in blocked-escalation-comment.adf.json --input-format adf --yes
+acjr3 issue transition ACJ-222 --to "Blocked" --yes --allow-non-success
+acjr3 issue comment add ACJ-222 --text-file blocked-escalation-comment.adf.json --yes
 ```
 
 6. If your team tracks estimates, update field payload.
 
 ```bash
-acjr3 issue update ACJ-222 --in estimate-update.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-222 --in estimate-update.json --yes --allow-non-success
 ```
 
 7. Verify final state.

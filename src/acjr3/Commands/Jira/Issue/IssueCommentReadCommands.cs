@@ -18,7 +18,7 @@ public static partial class IssueCommands
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum comments to return");
         var orderByOpt = new Option<string?>("--order-by", "Order by expression");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         list.AddArgument(keyArg);
@@ -26,7 +26,7 @@ public static partial class IssueCommands
         list.AddOption(maxResultsOpt);
         list.AddOption(orderByOpt);
         list.AddOption(expandOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
 
         list.SetHandler(async (InvocationContext context) =>
@@ -67,7 +67,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -86,13 +86,13 @@ public static partial class IssueCommands
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         get.AddArgument(keyArg);
         get.AddArgument(idArg);
         get.AddOption(expandOpt);
-        get.AddOption(failOnNonSuccessOpt);
+        get.AddOption(allowNonSuccessOpt);
         get.AddOption(verboseOpt);
 
         get.SetHandler(async (InvocationContext context) =>
@@ -117,7 +117,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -131,3 +131,4 @@ public static partial class IssueCommands
     }
 
 }
+

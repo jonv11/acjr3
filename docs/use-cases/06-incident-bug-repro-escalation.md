@@ -36,25 +36,25 @@ acjr3 issue view ACJ-333 \
 3. Apply bug template update (`Steps / Expected / Actual / Env / Regression`) via ADF description.
 
 ```bash
-acjr3 issue update ACJ-333 --field description --field-file bug-evidence-description.adf.json --field-format adf --yes --fail-on-non-success
+acjr3 issue update ACJ-333 --field description --field-file bug-evidence-description.adf.json --field-format adf --yes --allow-non-success
 ```
 
 4. Request missing artifacts and confirm repro (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-333 --in repro-request-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-333 --text-file repro-request-comment.adf.json --yes
 ```
 
 5. Add duplicate or causal link.
 
 ```bash
-acjr3 issuelink --type "Duplicate" --inward "ACJ-333" --outward "ACJ-289" --yes --fail-on-non-success
+acjr3 issuelink --type "Duplicate" --inward "ACJ-333" --outward "ACJ-289" --yes --allow-non-success
 ```
 
 6. Escalate workflow state.
 
 ```bash
-acjr3 issue transition ACJ-333 --to "Investigating" --yes --fail-on-non-success
+acjr3 issue transition ACJ-333 --to "Investigating" --yes --allow-non-success
 ```
 
 7. Verify severity and status.

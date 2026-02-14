@@ -16,17 +16,14 @@ acjr3 request --replay <REQUEST_FILE> [options]
 ## Core Input Options
 
 - `--in <PATH|->`: request payload source (`-` means stdin)
-- `--input-format json|adf|md|text`: payload format (default `json`)
-- `--body '<json-object>'`: inline JSON base payload
-- `--body-file <PATH>`: JSON base payload file
-- `--in`, `--body`, and `--body-file` are mutually exclusive
+- `--in` payload must be a JSON object
 - `--query key=value` (repeatable)
 - `--header key=value` (repeatable)
 - `--accept <mime>` (default `application/json`)
 - `--content-type <mime>`
 - `--out <PATH>` (write response body to file)
 
-For mutating methods (`POST`, `PUT`, `PATCH`), if no explicit payload source is provided, `request` sends `{}` as the default JSON payload.
+For mutating methods (`POST`, `PUT`, `PATCH`), if `--in` is not provided, `request` sends `{}` as the default JSON payload.
 
 ## Output Options
 
@@ -41,7 +38,7 @@ Constraints:
 
 ## Execution / Safety Options
 
-- `--fail-on-non-success` (default `true`)
+- `--allow-non-success` (default behavior is fail on non-success unless this option is set)
 - `--retry-non-idempotent`
 - `--paginate`
 - `--yes` or `--force` (required for mutating operations)
@@ -54,8 +51,7 @@ Constraints:
 
 ```bash
 acjr3 request GET /rest/api/3/myself
-acjr3 request POST /rest/api/3/issue --in create-issue.json --input-format json --yes
-acjr3 request POST /rest/api/3/issue --body '{"fields":{"project":{"key":"ACJ"},"summary":"Hello","issuetype":{"name":"Task"}}}' --yes
+acjr3 request POST /rest/api/3/issue --in create-issue.json --yes
 acjr3 request GET /rest/api/3/search --query "jql=project = ACJ" --format jsonl --compact
 acjr3 request GET /rest/api/3/project --explain
 acjr3 request --replay .acjr3/request.json

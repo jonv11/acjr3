@@ -22,7 +22,7 @@ public static partial class IssueCommands
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated issue properties to include");
         var updateHistoryOpt = new Option<string?>("--update-history", "Update issue view history (true|false)");
         var failFastOpt = new Option<string?>("--fail-fast", "Fail fast on invalid request details (true|false)");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         view.AddOption(verboseOpt);
         view.AddOption(fieldsOpt);
         view.AddOption(fieldsByKeysOpt);
@@ -30,7 +30,7 @@ public static partial class IssueCommands
         view.AddOption(propertiesOpt);
         view.AddOption(updateHistoryOpt);
         view.AddOption(failFastOpt);
-        view.AddOption(failOnNonSuccessOpt);
+        view.AddOption(allowNonSuccessOpt);
         view.SetHandler(async (InvocationContext context) =>
         {
             if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
@@ -69,7 +69,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -80,4 +80,5 @@ public static partial class IssueCommands
         return view;
     }
 }
+
 

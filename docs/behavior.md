@@ -39,11 +39,7 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 ## Request Input
 
 - Canonical payload input is `--in <file|->`.
-- Canonical payload format is `--input-format json|adf|md|text`.
-- Optional JSON base payload inputs are:
-  - `--body '<json-object>'`
-  - `--body-file <path>`
-- `--in`, `--body`, and `--body-file` are mutually exclusive.
+- `--in` payloads are parsed as JSON objects.
 - Text payload reads are BOM-normalized.
 
 ## JSON Payload Pipeline (Write Commands)
@@ -51,8 +47,8 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
 For JSON write commands (`request` mutating methods, `issue create/update/transition`, `issue comment add/update`, `issuelink`), payload processing is deterministic:
 
 1. Initialize an in-memory default payload object.
-2. If one explicit base source is provided (`--body`, `--body-file`, or `--in`), replace the default base.
-3. Apply command-specific sugar flags (for example `--summary`, `--id`, `--text`) as patches on top of the base.
+2. If `--in` is provided, replace the default base.
+3. Apply command-specific sugar flags (for example `--summary`, `--id`, `--text`, `--text-file`) as patches on top of the base.
 4. Validate final required fields for the command.
 5. Serialize and send the final JSON payload.
 

@@ -22,7 +22,7 @@ public static class AgentCommandBuilder
                 schemaVersion = "1.0",
                 outputFormats = new[] { "json", "jsonl", "text" },
                 jsonStyles = new[] { "pretty", "compact" },
-                inputFormats = new[] { "json", "adf", "md", "text" },
+                inputFormats = new[] { "json", "adf" },
                 exitCodes = new Dictionary<int, string>
                 {
                     [0] = "Success",

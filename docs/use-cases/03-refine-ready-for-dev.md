@@ -41,26 +41,26 @@ acjr3 issue comment list ACJ-789 --max-results 50 --compact
 4. Ask only missing questions (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-789 --in ready-questions-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-789 --text-file ready-questions-comment.adf.json --yes
 ```
 
 5. Rewrite description using ADF, then apply non-description fields.
 
 ```bash
-acjr3 issue update ACJ-789 --field description --field-file ready-description.adf.json --field-format adf --yes --fail-on-non-success
-acjr3 issue update ACJ-789 --in ready-update.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-789 --field description --field-file ready-description.adf.json --field-format adf --yes --allow-non-success
+acjr3 issue update ACJ-789 --in ready-update.json --yes --allow-non-success
 ```
 
 6. Add or fix dependency links when required.
 
 ```bash
-acjr3 issuelink --type "Blocks" --inward "ACJ-789" --outward "ACJ-740" --yes --fail-on-non-success
+acjr3 issuelink --type "Blocks" --inward "ACJ-789" --outward "ACJ-740" --yes --allow-non-success
 ```
 
 7. Transition to ready status.
 
 ```bash
-acjr3 issue transition ACJ-789 --to "Ready" --yes --fail-on-non-success
+acjr3 issue transition ACJ-789 --to "Ready" --yes --allow-non-success
 ```
 
 8. Verify readiness.

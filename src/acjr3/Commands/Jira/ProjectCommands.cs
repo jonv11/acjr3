@@ -33,7 +33,7 @@ public static class ProjectCommands
         var queryOpt = new Option<string?>("--query", "Filter versions by text");
         var statusOpt = new Option<string?>("--status", "Version status filter");
         var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
         list.AddOption(startAtOpt);
@@ -42,7 +42,7 @@ public static class ProjectCommands
         list.AddOption(queryOpt);
         list.AddOption(statusOpt);
         list.AddOption(expandOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -84,7 +84,7 @@ public static class ProjectCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -111,7 +111,7 @@ public static class ProjectCommands
         var statusOpt = new Option<string?>("--status", "Project status filter");
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated project properties");
         var propertyQueryOpt = new Option<string?>("--property-query", "Property query string");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
@@ -126,7 +126,7 @@ public static class ProjectCommands
         list.AddOption(statusOpt);
         list.AddOption(propertiesOpt);
         list.AddOption(propertyQueryOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -181,7 +181,7 @@ public static class ProjectCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -202,10 +202,10 @@ public static class ProjectCommands
     {
         var list = new Command("list", "List all components for a project");
         var projectOpt = new Option<string>("--project", "Project key") { IsRequired = true };
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -224,7 +224,7 @@ public static class ProjectCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -235,6 +235,7 @@ public static class ProjectCommands
         return list;
     }
 }
+
 
 
 

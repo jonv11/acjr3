@@ -78,9 +78,6 @@ internal static class RequestCommandHandler
         }
 
         var payloadValue = payloadResolved.Payload;
-        var payloadFromDefaultJson = payloadResolved.PayloadFromDefaultJson;
-        var inputFormat = payloadResolved.InputFormat;
-        var payloadSource = payloadResolved.PayloadSource;
 
         if (replayRequest is not null)
         {
@@ -116,16 +113,7 @@ internal static class RequestCommandHandler
 
         if (!string.IsNullOrWhiteSpace(payloadValue) && string.IsNullOrWhiteSpace(requestContentType))
         {
-            if (payloadFromDefaultJson
-                || payloadSource == ExplicitPayloadSource.Body
-                || payloadSource == ExplicitPayloadSource.BodyFile)
-            {
-                requestContentType = "application/json";
-            }
-            else
-            {
-                requestContentType = InputResolver.ContentTypeFor(inputFormat);
-            }
+            requestContentType = "application/json";
         }
 
         var storedRequest = new StoredRequest(
@@ -168,7 +156,7 @@ internal static class RequestCommandHandler
             payloadValue,
             parseResult.GetValueForOption(symbols.OutOpt),
             outputPreferences,
-            parseResult.GetValueForOption(symbols.FailOnNonSuccessOpt),
+            !parseResult.GetValueForOption(symbols.AllowNonSuccessOpt),
             parseResult.GetValueForOption(symbols.RetryNonIdempotentOpt),
             parseResult.GetValueForOption(symbols.PaginateOpt) || outputPreferences.All,
             parseResult.GetValueForOption(symbols.YesOpt) || parseResult.GetValueForOption(symbols.ForceOpt));

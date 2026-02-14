@@ -17,9 +17,9 @@ public static class FieldCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira fields");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -38,7 +38,7 @@ public static class FieldCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -60,7 +60,7 @@ public static class FieldCommands
         var orderByOpt = new Option<string?>("--order-by", "Order by expression");
         var expandOpt = new Option<string?>("--expand", "Expand related entities");
         var projectIdsOpt = new Option<string?>("--project-ids", "Comma-separated project IDs for project-scoped field search");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         search.AddOption(startAtOpt);
         search.AddOption(maxResultsOpt);
@@ -70,7 +70,7 @@ public static class FieldCommands
         search.AddOption(orderByOpt);
         search.AddOption(expandOpt);
         search.AddOption(projectIdsOpt);
-        search.AddOption(failOnNonSuccessOpt);
+        search.AddOption(allowNonSuccessOpt);
         search.AddOption(verboseOpt);
 
         search.SetHandler(async (InvocationContext context) =>
@@ -114,7 +114,7 @@ public static class FieldCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -126,6 +126,7 @@ public static class FieldCommands
         return search;
     }
 }
+
 
 
 

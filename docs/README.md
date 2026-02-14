@@ -52,5 +52,5 @@ Use this index to find small, task-focused docs.
 - Keep docs short.
 - Keep examples runnable.
 - Prefer linking over duplicating content.
-- Prefer canonical mutating input (`--in ... --input-format ... --yes|--force`) and use field-specific helpers (`--description-file ... --description-format adf`, `--field-file ... --field-format adf`) when appropriate.
+- Prefer canonical mutating input (`--in ... --yes|--force`) and use field-specific helpers (`--description-file ... --description-format json|adf`, `--field-file ... --field-format json|adf`) when appropriate.
 - Keep docs aligned with current code in `src/acjr3`.

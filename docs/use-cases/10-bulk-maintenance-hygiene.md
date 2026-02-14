@@ -40,19 +40,19 @@ acjr3 search list \
 3. Apply small batch updates from JSON payload files.
 
 ```bash
-acjr3 issue update ACJ-710 --in hygiene-update.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-710 --in hygiene-update.json --yes --allow-non-success
 ```
 
 4. Transition stale items only when policy allows.
 
 ```bash
-acjr3 issue transition ACJ-710 --to "Needs Triage" --yes --fail-on-non-success
+acjr3 issue transition ACJ-710 --to "Needs Triage" --yes --allow-non-success
 ```
 
 5. Add audit comments for every changed ticket (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-710 --in hygiene-audit-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-710 --text-file hygiene-audit-comment.adf.json --yes
 ```
 
 6. Verify a post-change sample.

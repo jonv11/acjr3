@@ -35,13 +35,13 @@ dotnet run --project src/acjr3 -- issue view ACJ-123 --fields "summary,status,as
 4. Create an issue
 
 ```bash
-dotnet run --project src/acjr3 -- issue create ACJ --summary "Investigate API timeout" --type Task --yes --fail-on-non-success
+dotnet run --project src/acjr3 -- issue create ACJ --summary "Investigate API timeout" --type Task --yes
 ```
 
 5. Add a comment
 
 ```bash
-dotnet run --project src/acjr3 -- issue comment add ACJ-123 --text "Working on this now." --yes --fail-on-non-success
+dotnet run --project src/acjr3 -- issue comment add ACJ-123 --text "Working on this now." --yes
 ```
 
 ## Configuration And Auth

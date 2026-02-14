@@ -17,14 +17,14 @@ public static partial class IssueCommands
         var deleteSubtasksOpt = new Option<string?>("--delete-subtasks", "Jira query parameter deleteSubtasks=true|false");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         delete.AddArgument(keyArg);
         delete.AddOption(deleteSubtasksOpt);
         delete.AddOption(yesOpt);
         delete.AddOption(forceOpt);
-        delete.AddOption(failOnNonSuccessOpt);
+        delete.AddOption(allowNonSuccessOpt);
         delete.AddOption(verboseOpt);
 
         delete.SetHandler(async (InvocationContext context) =>
@@ -53,7 +53,7 @@ public static partial class IssueCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));
@@ -66,4 +66,5 @@ public static partial class IssueCommands
         return delete;
     }
 }
+
 

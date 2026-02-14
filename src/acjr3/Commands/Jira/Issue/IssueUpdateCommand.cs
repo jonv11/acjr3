@@ -12,7 +12,7 @@ public static partial class IssueCommands
 {
     private static Command BuildUpdateCommand(IServiceProvider services)
     {
-        var update = new Command("update", "Update a Jira issue (PUT /rest/api/3/issue/{issueIdOrKey}). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var update = new Command("update", "Update a Jira issue (PUT /rest/api/3/issue/{issueIdOrKey}). Starts from a default payload, optional --in base payload, then applies sugar flags.");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var projectOpt = new Option<string?>("--project", "Project key");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
@@ -20,19 +20,16 @@ public static partial class IssueCommands
         var descriptionOpt = new Option<string?>("--description", "Issue description");
         var fieldOpt = new Option<string?>("--field", "Field key to update when using --field-file (for example, description, customfield_123)");
         var fieldFileOpt = new Option<string?>("--field-file", "Read field value from file path");
-        var fieldFormatOpt = new Option<string>("--field-format", () => "json", "Field file format: json|adf");
+        var fieldFormatOpt = new Option<string>("--field-format", () => "adf", "Field file format: json|adf");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var notifyUsersOpt = new Option<string?>("--notify-users", "Jira query parameter notifyUsers=true|false");
         var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Jira query parameter overrideScreenSecurity=true|false");
         var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Jira query parameter overrideEditableFlag=true|false");
         var returnIssueOpt = new Option<string?>("--return-issue", "Jira query parameter returnIssue=true|false");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         update.AddArgument(keyArg);
@@ -44,17 +41,14 @@ public static partial class IssueCommands
         update.AddOption(fieldFileOpt);
         update.AddOption(fieldFormatOpt);
         update.AddOption(assigneeOpt);
-        update.AddOption(bodyOpt);
-        update.AddOption(bodyFileOpt);
         update.AddOption(inOpt);
-        update.AddOption(inputFormatOpt);
         update.AddOption(notifyUsersOpt);
         update.AddOption(overrideScreenSecurityOpt);
         update.AddOption(overrideEditableFlagOpt);
         update.AddOption(returnIssueOpt);
         update.AddOption(yesOpt);
         update.AddOption(forceOpt);
-        update.AddOption(failOnNonSuccessOpt);
+        update.AddOption(allowNonSuccessOpt);
         update.AddOption(verboseOpt);
 
         update.SetHandler(async (InvocationContext context) =>
@@ -65,30 +59,10 @@ public static partial class IssueCommands
             }
 
             var key = parseResult.GetValueForArgument(keyArg);
-            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
-            {
-                CliOutput.WriteValidationError(context, formatError);
-                return;
-            }
-
-            if (!InputResolver.TryResolveExplicitPayloadSource(
-                    parseResult.GetValueForOption(inOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    out var payloadSource,
-                    out var sourceError))
-            {
-                CliOutput.WriteValidationError(context, sourceError);
-                return;
-            }
 
             var updateBasePayload = await TryResolveIssueJsonBasePayloadAsync(
                 "{\"fields\":{}}",
                 parseResult.GetValueForOption(inOpt),
-                parseResult.GetValueForOption(bodyOpt),
-                parseResult.GetValueForOption(bodyFileOpt),
-                inputFormat,
-                payloadSource,
                 context,
                 context.GetCancellationToken());
             if (!updateBasePayload.Ok)
@@ -175,7 +149,7 @@ public static partial class IssueCommands
                 JsonPayloadPipeline.Serialize(payloadObject),
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));

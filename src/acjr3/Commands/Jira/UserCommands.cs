@@ -22,7 +22,7 @@ public static class UserCommands
         var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of users to return");
         var propertyOpt = new Option<string?>("--property", "User property query");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         search.AddOption(queryOpt);
         search.AddOption(usernameOpt);
@@ -30,7 +30,7 @@ public static class UserCommands
         search.AddOption(startAtOpt);
         search.AddOption(maxResultsOpt);
         search.AddOption(propertyOpt);
-        search.AddOption(failOnNonSuccessOpt);
+        search.AddOption(allowNonSuccessOpt);
         search.AddOption(verboseOpt);
         search.SetHandler(async (InvocationContext context) =>
         {
@@ -82,7 +82,7 @@ public static class UserCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -93,6 +93,7 @@ public static class UserCommands
         return search;
     }
 }
+
 
 
 

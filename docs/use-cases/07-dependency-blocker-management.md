@@ -34,20 +34,20 @@ acjr3 issue view ACJ-410 --fields "status,issuelinks,assignee,priority" --compac
 3. Correct stale or missing links.
 
 ```bash
-acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --yes --fail-on-non-success
+acjr3 issuelink --type "Blocks" --inward "ACJ-410" --outward "ACJ-350" --yes --allow-non-success
 ```
 
 4. Notify blocker owners (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-410 --in blocker-owner-ping.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-410 --text-file blocker-owner-ping.adf.json --yes
 ```
 
 5. Transition blocked/unblocked states when workflow supports it.
 
 ```bash
-acjr3 issue transition ACJ-410 --to "Blocked" --yes --fail-on-non-success
-acjr3 issue transition ACJ-410 --to "In Progress" --yes --fail-on-non-success
+acjr3 issue transition ACJ-410 --to "Blocked" --yes --allow-non-success
+acjr3 issue transition ACJ-410 --to "In Progress" --yes --allow-non-success
 ```
 
 6. Re-run query for verification.

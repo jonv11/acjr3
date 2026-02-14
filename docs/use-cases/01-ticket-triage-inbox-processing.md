@@ -44,7 +44,7 @@ acjr3 issue view ACJ-123 \
 4. Update fields in one controlled change.
 
 ```bash
-acjr3 issue update ACJ-123 --in triage-update.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-123 --in triage-update.json --yes --allow-non-success
 ```
 
 `triage-update.json` example:
@@ -62,13 +62,13 @@ acjr3 issue update ACJ-123 --in triage-update.json --input-format json --yes --f
 5. Post triage outcome comment (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-123 --in triage-outcome-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-123 --text-file triage-outcome-comment.adf.json --yes
 ```
 
 6. Transition to the next workflow state.
 
 ```bash
-acjr3 issue transition ACJ-123 --to "Needs Triage" --yes --fail-on-non-success
+acjr3 issue transition ACJ-123 --to "Needs Triage" --yes --allow-non-success
 ```
 
 7. Verify state and fields.

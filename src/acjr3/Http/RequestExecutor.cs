@@ -213,15 +213,13 @@ public sealed class RequestExecutor(
             var error = RequestResponseHelpers.BuildHttpError(response.StatusCode, response.ReasonPhrase, data);
             var envelope = new CliEnvelope(false, null, error with { Code = errorCode }, meta);
             WriteEnvelope(envelope, options.Output);
-            return (int)exitCode;
+            return options.FailOnNonSuccess ? (int)exitCode : 0;
         }
 
         var successEnvelope = new CliEnvelope(true, data, null, meta);
         WriteEnvelope(successEnvelope, options.Output);
 
-        return options.FailOnNonSuccess
-            ? (response.IsSuccessStatusCode ? 0 : (int)CliExitCode.Validation)
-            : 0;
+        return 0;
     }
 
     private void WriteEnvelope(CliEnvelope envelope, OutputPreferences preferences)

@@ -7,11 +7,17 @@ public static partial class IssueCommands
 {
     private enum DescriptionFileFormat
     {
-        Text,
+        Json,
         Adf
     }
 
     private enum FieldFileFormat
+    {
+        Json,
+        Adf
+    }
+
+    private enum CommentTextFileFormat
     {
         Json,
         Adf

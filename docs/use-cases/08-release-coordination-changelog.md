@@ -43,21 +43,21 @@ acjr3 search list \
 4. Fix missing or incorrect fixVersion values.
 
 ```bash
-acjr3 issue update ACJ-501 --in set-fixversion.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-501 --in set-fixversion.json --yes --allow-non-success
 ```
 
 5. Generate per-ticket note summary as comments when required (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-501 --in release-notes-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-501 --text-file release-notes-comment.adf.json --yes
 ```
 
 6. Optional version management via generic request API.
 
 ```bash
 VERSION_ID=10001
-acjr3 request POST /rest/api/3/version --in create-version.json --input-format json --yes --fail-on-non-success
-acjr3 request PUT /rest/api/3/version/$VERSION_ID --in release-version.json --input-format json --yes --fail-on-non-success
+acjr3 request POST /rest/api/3/version --in create-version.json --yes --allow-non-success
+acjr3 request PUT /rest/api/3/version/$VERSION_ID --in release-version.json --yes --allow-non-success
 ```
 
 ## Accuracy notes

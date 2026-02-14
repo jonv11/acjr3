@@ -12,23 +12,20 @@ public static partial class IssueCommands
 {
     private static Command BuildCreateCommand(IServiceProvider services)
     {
-        var create = new Command("create", "Create a Jira issue (POST /rest/api/3/issue). Starts from a default payload, optional explicit base (--body/--body-file/--in), then applies sugar flags.");
+        var create = new Command("create", "Create a Jira issue (POST /rest/api/3/issue). Starts from a default payload, optional --in base payload, then applies sugar flags.");
         var projectArg = new Argument<string?>("project", () => null, "Project key (for example, TEST)") { Arity = ArgumentArity.ZeroOrOne };
         var projectOpt = new Option<string?>("--project", "Project key (for example, TEST)");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
         var typeOpt = new Option<string>("--type", () => "Task", "Issue type (for example, Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
         var descriptionFileOpt = new Option<string?>("--description-file", "Read description content from file path");
-        var descriptionFormatOpt = new Option<string>("--description-format", () => "text", "Description file format: text|adf");
+        var descriptionFormatOpt = new Option<string>("--description-format", () => "adf", "Description file format: json|adf");
         var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON base payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON base payload file (JSON object).");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var updateHistoryOpt = new Option<string?>("--update-history", "Jira query parameter updateHistory=true|false");
         var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
         var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         create.AddArgument(projectArg);
         create.AddOption(projectOpt);
@@ -38,14 +35,11 @@ public static partial class IssueCommands
         create.AddOption(descriptionFileOpt);
         create.AddOption(descriptionFormatOpt);
         create.AddOption(assigneeOpt);
-        create.AddOption(bodyOpt);
-        create.AddOption(bodyFileOpt);
         create.AddOption(inOpt);
-        create.AddOption(inputFormatOpt);
         create.AddOption(updateHistoryOpt);
         create.AddOption(yesOpt);
         create.AddOption(forceOpt);
-        create.AddOption(failOnNonSuccessOpt);
+        create.AddOption(allowNonSuccessOpt);
         create.AddOption(verboseOpt);
         create.SetHandler(async (InvocationContext context) =>
         {
@@ -54,30 +48,9 @@ public static partial class IssueCommands
                 return;
             }
 
-            if (!InputResolver.TryParseFormat(parseResult.GetValueForOption(inputFormatOpt), out var inputFormat, out var formatError))
-            {
-                CliOutput.WriteValidationError(context, formatError);
-                return;
-            }
-
-            if (!InputResolver.TryResolveExplicitPayloadSource(
-                    parseResult.GetValueForOption(inOpt),
-                    parseResult.GetValueForOption(bodyOpt),
-                    parseResult.GetValueForOption(bodyFileOpt),
-                    out var payloadSource,
-                    out var sourceError))
-            {
-                CliOutput.WriteValidationError(context, sourceError);
-                return;
-            }
-
             var createBasePayload = await TryResolveIssueJsonBasePayloadAsync(
                 "{\"fields\":{\"issuetype\":{\"name\":\"Task\"}}}",
                 parseResult.GetValueForOption(inOpt),
-                parseResult.GetValueForOption(bodyOpt),
-                parseResult.GetValueForOption(bodyFileOpt),
-                inputFormat,
-                payloadSource,
                 context,
                 context.GetCancellationToken());
             if (!createBasePayload.Ok)
@@ -178,7 +151,7 @@ public static partial class IssueCommands
                 JsonPayloadPipeline.Serialize(payloadObject),
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 parseResult.GetValueForOption(yesOpt) || parseResult.GetValueForOption(forceOpt));

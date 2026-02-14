@@ -23,7 +23,7 @@ For every scenario, use:
 
 Prefer small, reversible edits.  
 When changing workflow-sensitive fields (status, priority, assignee, sprint), add a short audit comment.
-For issue descriptions/comments, prefer `--description-file <PATH> --description-format adf`, `--field ... --field-file <PATH> --field-format adf`, and `--in <PATH> --input-format adf --yes` over ad hoc payload shaping.
+For issue descriptions/comments, prefer `--description-file <PATH> --description-format adf`, `--field ... --field-file <PATH> --field-format adf`, `--text-file <PATH> --text-format adf`, and `--in <PATH> --yes` for full JSON payloads over ad hoc payload shaping.
 
 ## Files
 
@@ -37,5 +37,4 @@ For issue descriptions/comments, prefer `--description-file <PATH> --description
 8. [Release coordination and changelog generation](08-release-coordination-changelog.md)
 9. [Knowledge extraction: decisions and rationale](09-knowledge-extraction-decisions.md)
 10. [Bulk maintenance and hygiene](10-bulk-maintenance-hygiene.md)
-
 

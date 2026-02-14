@@ -40,13 +40,13 @@ acjr3 issue create ACJ \
   --summary "Add retry-safe import endpoint" \
   --description-file create-issue-description.adf.json --description-format adf \
   --yes \
-  --fail-on-non-success --compact
+  --allow-non-success --compact
 ```
 
 3. Enrich with planning fields (priority, points, fixVersion, custom fields).
 
 ```bash
-acjr3 issue update ACJ-456 --in enrich-issue.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-456 --in enrich-issue.json --yes --allow-non-success
 ```
 
 4. Link dependencies.
@@ -54,15 +54,15 @@ acjr3 issue update ACJ-456 --in enrich-issue.json --input-format json --yes --fa
 ```bash
 acjr3 issuelink --type "Blocks" --inward "ACJ-456" --outward "ACJ-320" \
   --yes \
-  --fail-on-non-success
+  --allow-non-success
 ```
 
-Use `--in <PATH> --input-format json` when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
+Use `--in <PATH>` when you need advanced fields beyond `--type`, `--inward`, and `--outward`.
 
 5. Add follow-up open questions comment (ADF-first).
 
 ```bash
-acjr3 issue comment add ACJ-456 --in open-questions-comment.adf.json --input-format adf --yes
+acjr3 issue comment add ACJ-456 --text-file open-questions-comment.adf.json --yes
 ```
 
 6. Verify final issue state.

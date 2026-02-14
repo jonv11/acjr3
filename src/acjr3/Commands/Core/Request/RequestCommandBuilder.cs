@@ -16,12 +16,9 @@ public static class RequestCommandBuilder
         var headerOpt = new Option<string[]>("--header", "Header key=value. Repeat for additional values.") { AllowMultipleArgumentsPerToken = true };
         var acceptOpt = new Option<string>("--accept", () => "application/json", "Accept header value.");
         var contentTypeOpt = new Option<string?>("--content-type", "Content-Type header value.");
-        var bodyOpt = new Option<string?>("--body", "Inline JSON request payload (JSON object).");
-        var bodyFileOpt = new Option<string?>("--body-file", "Path to JSON request payload file (JSON object).");
         var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var inputFormatOpt = new Option<string>("--input-format", () => "json", "Input format: json|adf|md|text.");
         var outOpt = new Option<string?>("--out", "Write response body to file path.");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", () => true, "Return non-zero on 4xx/5xx responses.");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging.");
         var debugOpt = new Option<bool>("--debug", "Enable debug diagnostics.");
         var traceOpt = new Option<bool>("--trace", "Emit request/response trace diagnostics to stderr.");
@@ -39,12 +36,9 @@ public static class RequestCommandBuilder
         command.AddOption(headerOpt);
         command.AddOption(acceptOpt);
         command.AddOption(contentTypeOpt);
-        command.AddOption(bodyOpt);
-        command.AddOption(bodyFileOpt);
         command.AddOption(inOpt);
-        command.AddOption(inputFormatOpt);
         command.AddOption(outOpt);
-        command.AddOption(failOnNonSuccessOpt);
+        command.AddOption(allowNonSuccessOpt);
         command.AddOption(verboseOpt);
         command.AddOption(debugOpt);
         command.AddOption(traceOpt);
@@ -63,12 +57,9 @@ public static class RequestCommandBuilder
             headerOpt,
             acceptOpt,
             contentTypeOpt,
-            bodyOpt,
-            bodyFileOpt,
             inOpt,
-            inputFormatOpt,
             outOpt,
-            failOnNonSuccessOpt,
+            allowNonSuccessOpt,
             verboseOpt,
             debugOpt,
             traceOpt,

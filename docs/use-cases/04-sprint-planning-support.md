@@ -39,13 +39,13 @@ acjr3 issue view ACJ-101 --fields "summary,priority,labels,issuelinks,customfiel
 4. Set sprint/assignee/points after approval.
 
 ```bash
-acjr3 issue update ACJ-101 --in sprint-assign.json --input-format json --yes --fail-on-non-success
+acjr3 issue update ACJ-101 --in sprint-assign.json --yes --allow-non-success
 ```
 
 5. Transition to development intake state.
 
 ```bash
-acjr3 issue transition ACJ-101 --to "Selected for Development" --yes --fail-on-non-success
+acjr3 issue transition ACJ-101 --to "Selected for Development" --yes --allow-non-success
 ```
 
 6. Verify set.
@@ -59,6 +59,6 @@ acjr3 search list \
 ## Accuracy notes
 
 - `board` and `sprint` shortcut commands are not currently implemented.
-- Use issue fields and JQL for sprint planning; use `issue update --in <payload.json> --input-format json --yes` for sprint custom-field assignment.
+- Use issue fields and JQL for sprint planning; use `issue update --in <payload.json> --yes` for sprint custom-field assignment.
 
 

@@ -13,187 +13,95 @@ public static partial class IssueCommands
     private static async Task<(bool Ok, JsonObject? Payload)> TryResolveIssueJsonBasePayloadAsync(
         string defaultPayload,
         string? inPath,
-        string? body,
-        string? bodyFile,
-        InputFormat inputFormat,
-        ExplicitPayloadSource payloadSource,
         InvocationContext context,
         CancellationToken cancellationToken)
     {
-        switch (payloadSource)
+        if (!string.IsNullOrWhiteSpace(inPath))
         {
-            case ExplicitPayloadSource.In:
+            var payload = await InputResolver.TryReadPayloadAsync(inPath, cancellationToken);
+            if (!payload.Ok)
             {
-                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
-                if (!payload.Ok)
-                {
-                    CliOutput.WriteValidationError(context, payload.Error);
-                    return (false, null);
-                }
-
-                if (!TryNormalizeIssueInputPayload(payload.Payload, inputFormat, context, out var normalizedBody))
-                {
-                    return (false, null);
-                }
-
-                if (string.IsNullOrWhiteSpace(normalizedBody))
-                {
-                    CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
-                    return (false, null);
-                }
-
-                if (!JsonPayloadPipeline.TryParseJsonObject(normalizedBody, "--in", out var inPayloadObject, out var parseError))
-                {
-                    CliOutput.WriteValidationError(context, parseError);
-                    return (false, null);
-                }
-
-                return (true, inPayloadObject);
+                CliOutput.WriteValidationError(context, payload.Error);
+                return (false, null);
             }
-            case ExplicitPayloadSource.Body:
+
+            if (string.IsNullOrWhiteSpace(payload.Payload))
             {
-                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
-                {
-                    CliOutput.WriteValidationError(context, parseBodyError);
-                    return (false, null);
-                }
-
-                return (true, bodyObject);
+                CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
+                return (false, null);
             }
-            case ExplicitPayloadSource.BodyFile:
+
+            if (!JsonPayloadPipeline.TryParseJsonObject(payload.Payload, "--in", out var inPayloadObject, out var parseError))
             {
-                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
-                {
-                    CliOutput.WriteValidationError(context, bodyFileError);
-                    return (false, null);
-                }
-
-                return (true, bodyFileObject);
+                CliOutput.WriteValidationError(context, parseError);
+                return (false, null);
             }
-            default:
-                return (true, JsonPayloadPipeline.ParseDefaultPayload(defaultPayload));
+
+            return (true, inPayloadObject);
         }
+
+        return (true, JsonPayloadPipeline.ParseDefaultPayload(defaultPayload));
     }
 
     private static async Task<(bool Ok, JsonObject? Payload)> TryResolveIssueTransitionBasePayloadAsync(
         string? inPath,
-        string? body,
-        string? bodyFile,
-        InputFormat inputFormat,
-        ExplicitPayloadSource payloadSource,
         InvocationContext context,
         CancellationToken cancellationToken)
     {
-        switch (payloadSource)
+        if (!string.IsNullOrWhiteSpace(inPath))
         {
-            case ExplicitPayloadSource.In:
+            var payload = await InputResolver.TryReadPayloadAsync(inPath, cancellationToken);
+            if (!payload.Ok)
             {
-                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
-                if (!payload.Ok)
-                {
-                    CliOutput.WriteValidationError(context, payload.Error);
-                    return (false, null);
-                }
-
-                if (!TryNormalizeTransitionInputPayload(payload.Payload, inputFormat, context, out var normalizedBody))
-                {
-                    return (false, null);
-                }
-
-                if (string.IsNullOrWhiteSpace(normalizedBody))
-                {
-                    CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
-                    return (false, null);
-                }
-
-                if (!JsonPayloadPipeline.TryParseJsonObject(normalizedBody, "--in", out var transitionPayload, out var parseError))
-                {
-                    CliOutput.WriteValidationError(context, parseError);
-                    return (false, null);
-                }
-
-                return (true, transitionPayload);
+                CliOutput.WriteValidationError(context, payload.Error);
+                return (false, null);
             }
-            case ExplicitPayloadSource.Body:
+
+            if (string.IsNullOrWhiteSpace(payload.Payload))
             {
-                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
-                {
-                    CliOutput.WriteValidationError(context, parseBodyError);
-                    return (false, null);
-                }
-
-                return (true, bodyObject);
+                CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
+                return (false, null);
             }
-            case ExplicitPayloadSource.BodyFile:
+
+            if (!JsonPayloadPipeline.TryParseJsonObject(payload.Payload, "--in", out var transitionPayload, out var parseError))
             {
-                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
-                {
-                    CliOutput.WriteValidationError(context, bodyFileError);
-                    return (false, null);
-                }
-
-                return (true, bodyFileObject);
+                CliOutput.WriteValidationError(context, parseError);
+                return (false, null);
             }
-            default:
-                return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"transition\":{},\"fields\":{},\"update\":{}}"));
+
+            return (true, transitionPayload);
         }
+
+        return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"transition\":{},\"fields\":{},\"update\":{}}"));
     }
 
     private static async Task<(bool Ok, JsonObject? Payload)> TryResolveCommentBasePayloadAsync(
         string? inPath,
-        string? body,
-        string? bodyFile,
-        InputFormat inputFormat,
-        ExplicitPayloadSource payloadSource,
         InvocationContext context,
         CancellationToken cancellationToken)
     {
-        switch (payloadSource)
+        if (!string.IsNullOrWhiteSpace(inPath))
         {
-            case ExplicitPayloadSource.In:
+            var payload = await InputResolver.TryReadPayloadAsync(inPath, cancellationToken);
+            if (!payload.Ok)
             {
-                var payload = await InputResolver.TryReadPayloadAsync(inPath, inputFormat, cancellationToken);
-                if (!payload.Ok)
-                {
-                    CliOutput.WriteValidationError(context, payload.Error);
-                    return (false, null);
-                }
-
-                if (!TryBuildCommentBasePayloadFromInput(payload.Payload, inputFormat, context, out var commentPayload))
-                {
-                    return (false, null);
-                }
-
-                return (true, commentPayload);
+                CliOutput.WriteValidationError(context, payload.Error);
+                return (false, null);
             }
-            case ExplicitPayloadSource.Body:
+
+            if (!TryBuildCommentBasePayloadFromInput(payload.Payload, context, out var commentPayload))
             {
-                if (!JsonPayloadPipeline.TryParseJsonObject(body!, "--body", out var bodyObject, out var parseBodyError))
-                {
-                    CliOutput.WriteValidationError(context, parseBodyError);
-                    return (false, null);
-                }
-
-                return (true, bodyObject);
+                return (false, null);
             }
-            case ExplicitPayloadSource.BodyFile:
-            {
-                if (!JsonPayloadPipeline.TryReadJsonObjectFile(bodyFile!, "--body-file", out var bodyFileObject, out var bodyFileError))
-                {
-                    CliOutput.WriteValidationError(context, bodyFileError);
-                    return (false, null);
-                }
 
-                return (true, bodyFileObject);
-            }
-            default:
-                return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"body\":{}}"));
+            return (true, commentPayload);
         }
+
+        return (true, JsonPayloadPipeline.ParseDefaultPayload("{\"body\":{}}"));
     }
 
     private static bool TryBuildCommentBasePayloadFromInput(
         string? payload,
-        InputFormat inputFormat,
         InvocationContext context,
         out JsonObject commentPayload)
     {
@@ -202,24 +110,6 @@ public static partial class IssueCommands
         {
             CliOutput.WriteValidationError(context, "--in was provided but no payload was read.");
             return false;
-        }
-
-        if (inputFormat == InputFormat.Adf)
-        {
-            if (!JsonPayloadPipeline.TryParseJsonObject(payload, "--in", out var adfBody, out var parseAdfError))
-            {
-                CliOutput.WriteValidationError(context, parseAdfError);
-                return false;
-            }
-
-            JsonPayloadPipeline.SetNode(commentPayload, adfBody, "body");
-            return true;
-        }
-
-        if (inputFormat == InputFormat.Markdown || inputFormat == InputFormat.Text)
-        {
-            JsonPayloadPipeline.SetNode(commentPayload, BuildCommentAdfTextNode(payload), "body");
-            return true;
         }
 
         if (!JsonPayloadPipeline.TryParseJsonObject(payload, "--in", out var jsonPayload, out var parseJsonError))

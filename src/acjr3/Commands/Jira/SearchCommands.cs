@@ -24,7 +24,7 @@ public static class SearchCommands
         var fieldsOpt = new Option<string?>("--fields", "Comma-separated fields to return");
         var maxResultsOpt = new Option<int?>("--max-results", "Maximum results per page");
         var nextPageTokenOpt = new Option<string?>("--next-page-token", "Token for next page from previous search response");
-        var failOnNonSuccessOpt = new Option<bool>("--fail-on-non-success", "Exit non-zero on 4xx/5xx responses");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
         list.AddOption(projectOpt);
         list.AddOption(statusOpt);
@@ -34,7 +34,7 @@ public static class SearchCommands
         list.AddOption(fieldsOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(nextPageTokenOpt);
-        list.AddOption(failOnNonSuccessOpt);
+        list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
         {
@@ -106,7 +106,7 @@ public static class SearchCommands
                 null,
                 null,
                 outputPreferences,
-                (parseResult.FindResultFor(failOnNonSuccessOpt) is null || parseResult.GetValueForOption(failOnNonSuccessOpt)),
+                !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
                 false);
@@ -117,6 +117,7 @@ public static class SearchCommands
         return list;
     }
 }
+
 
 
 
