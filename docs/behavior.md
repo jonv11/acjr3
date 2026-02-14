@@ -24,6 +24,11 @@ Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Comman
   - `--plain` is only valid with text output when `--format` is explicitly set (for example, `--format text --plain`).
   - `--pretty` and `--compact` are mutually exclusive.
   - `--format text` cannot be combined with `--pretty` or `--compact`.
+- Targeted extract output:
+  - `issue view --extract <fieldName>` emits only `data.fields.<fieldName>` as raw JSON.
+  - `issue comment get --extract` emits only `data.body` as raw JSON.
+  - For extract mode, `--format` must be `json`.
+  - Extract mode cannot be combined with `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, or `--plain`.
 - Payload is emitted on `stdout`. Diagnostics remain on `stderr`.
 
 ## Exit Codes

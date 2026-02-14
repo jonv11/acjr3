@@ -9,8 +9,8 @@ public static class RequestCommandBuilder
         var command = new Command(
             "request",
             "Execute a Jira REST API request. For example: acjr3 request GET /rest/api/3/myself.");
-        var methodArg = new Argument<string?>("method", () => null, "HTTP method: GET|POST|PUT|DELETE|PATCH") { Arity = ArgumentArity.ZeroOrOne };
-        var pathArg = new Argument<string?>("path", () => null, "Relative Jira path (for example, /rest/api/3/myself)") { Arity = ArgumentArity.ZeroOrOne };
+        var methodArg = new Argument<string?>("method", "HTTP method: GET|POST|PUT|DELETE|PATCH") { Arity = ArgumentArity.ZeroOrOne };
+        var pathArg = new Argument<string?>("path", "Relative Jira path (for example, /rest/api/3/myself)") { Arity = ArgumentArity.ZeroOrOne };
 
         var queryOpt = new Option<string[]>("--query", "Query parameter key=value. Repeat for additional values.") { AllowMultipleArgumentsPerToken = true };
         var headerOpt = new Option<string[]>("--header", "Header key=value. Repeat for additional values.") { AllowMultipleArgumentsPerToken = true };

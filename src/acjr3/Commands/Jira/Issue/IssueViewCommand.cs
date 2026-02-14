@@ -16,7 +16,8 @@ public static partial class IssueCommands
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         view.AddArgument(keyArg);
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        var fieldsOpt = new Option<string?>("--fields", "Comma-separated list of fields to include in the reply (for example, summary,description)");
+        var fieldsOpt = new Option<string?>("--fields", "Comma-separated list of fields to include in the response (for example, summary,description).");
+        var extractOpt = new Option<string?>("--extract", "Extract and return only one issue field value as JSON (fields.<fieldName>).");
         var fieldsByKeysOpt = new Option<string?>("--fields-by-keys", "Interpret fields in --fields by key (true|false)");
         var expandOpt = new Option<string?>("--expand", "Expand issue response entities");
         var propertiesOpt = new Option<string?>("--properties", "Comma-separated issue properties to include");
@@ -25,6 +26,7 @@ public static partial class IssueCommands
         var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         view.AddOption(verboseOpt);
         view.AddOption(fieldsOpt);
+        view.AddOption(extractOpt);
         view.AddOption(fieldsByKeysOpt);
         view.AddOption(expandOpt);
         view.AddOption(propertiesOpt);
@@ -40,6 +42,25 @@ public static partial class IssueCommands
 
             var key = parseResult.GetValueForArgument(keyArg);
             var fields = parseResult.GetValueForOption(fieldsOpt);
+            var extractFieldRaw = parseResult.GetValueForOption(extractOpt);
+            var extractSupplied = WasOptionSupplied(parseResult, "--extract");
+            string? extractField = null;
+            if (extractSupplied)
+            {
+                if (string.IsNullOrWhiteSpace(extractFieldRaw))
+                {
+                    CliOutput.WriteValidationError(context, "--extract requires a non-empty field name.");
+                    return;
+                }
+
+                if (!TryValidateExtractOutputOptions(outputPreferences, context))
+                {
+                    return;
+                }
+
+                extractField = extractFieldRaw.Trim();
+            }
+
             if (!TryParseBooleanOption(parseResult.GetValueForOption(fieldsByKeysOpt), "--fields-by-keys", context, out var fieldsByKeys)
                 || !TryParseBooleanOption(parseResult.GetValueForOption(updateHistoryOpt), "--update-history", context, out var updateHistory)
                 || !TryParseBooleanOption(parseResult.GetValueForOption(failFastOpt), "--fail-fast", context, out var failFast))
@@ -51,6 +72,10 @@ public static partial class IssueCommands
             if (!string.IsNullOrWhiteSpace(fields))
             {
                 queryParams.Add(new KeyValuePair<string, string>("fields", fields));
+            }
+            else if (extractSupplied && !WasOptionSupplied(parseResult, "--fields"))
+            {
+                queryParams.Add(new KeyValuePair<string, string>("fields", extractField!));
             }
 
             JiraQueryBuilder.AddBoolean(queryParams, "fieldsByKeys", fieldsByKeys);
@@ -72,7 +97,8 @@ public static partial class IssueCommands
                 !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
-                false);
+                false,
+                extractSupplied ? $"fields.{extractField}" : null);
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());
             context.ExitCode = exitCode;

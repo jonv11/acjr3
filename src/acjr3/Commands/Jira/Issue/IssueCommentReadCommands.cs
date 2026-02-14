@@ -85,12 +85,14 @@ public static partial class IssueCommands
         var get = new Command("get", "Get one comment from an issue");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
+        var extractOpt = new Option<bool>("--extract", "Extract and return only the comment body JSON.");
         var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
         var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
         var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
 
         get.AddArgument(keyArg);
         get.AddArgument(idArg);
+        get.AddOption(extractOpt);
         get.AddOption(expandOpt);
         get.AddOption(allowNonSuccessOpt);
         get.AddOption(verboseOpt);
@@ -98,6 +100,12 @@ public static partial class IssueCommands
         get.SetHandler(async (InvocationContext context) =>
         {
             if (!JiraCommandPreflight.TryPrepare(context, verboseOpt, out var parseResult, out var logger, out var config, out var outputPreferences))
+            {
+                return;
+            }
+
+            var extract = parseResult.GetValueForOption(extractOpt);
+            if (extract && !TryValidateExtractOutputOptions(outputPreferences, context))
             {
                 return;
             }
@@ -120,7 +128,8 @@ public static partial class IssueCommands
                 !parseResult.GetValueForOption(allowNonSuccessOpt),
                 false,
                 false,
-                false);
+                false,
+                extract ? "body" : null);
 
             var executor = services.GetRequiredService<RequestExecutor>();
             var exitCode = await executor.ExecuteAsync(config!, options, logger, context.GetCancellationToken());

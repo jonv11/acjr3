@@ -35,6 +35,9 @@ For JSON write shortcuts, payload processing is uniform:
 3. Apply command-specific sugar flags.
 4. Validate required payload fields, then send.
 
+For `issue create`, project can be provided as positional `<project>` shorthand or `--project <KEY>`.
+When both are provided, `--project` takes precedence.
+
 ## Comment Commands
 
 Canonical comment command shape:
@@ -53,6 +56,12 @@ For comment add/update:
 - `--text-format` requires `--text-file`.
 - default `--text-format` is `adf`.
 
+Targeted extract output for read flows:
+- `issue view <KEY> --extract <FIELD_NAME>` returns only `fields.<FIELD_NAME>` JSON from the issue payload.
+- `issue comment get <KEY> <ID> --extract` returns only `body` JSON from the comment payload.
+- Extract mode requires `--format json`.
+- Extract mode cannot be combined with `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, or `--plain`.
+
 Comment examples:
 
 ```bash
@@ -60,8 +69,10 @@ acjr3 issue comment add ACJ-123 --text "Working on this now." --yes
 acjr3 issue comment add ACJ-123 --text-file comment-body.adf.json --text-format adf --yes
 acjr3 issue comment list ACJ-123 --start-at 0 --max-results 20 --order-by "-created"
 acjr3 issue comment get ACJ-123 10001 --expand renderedBody
+acjr3 issue comment get ACJ-123 10001 --extract --compact
 acjr3 issue comment update ACJ-123 10001 --text "Update from CLI" --notify-users true --yes
 acjr3 issue comment delete ACJ-123 10001 --yes
+acjr3 issue view ACJ-123 --extract description --compact
 ```
 
 Boolean-valued query options require `true|false` strings, for example:

@@ -581,6 +581,99 @@ public sealed partial class ProgramE2eTests
     }
 
     [Fact]
+    public async Task IssueView_Extract_WithFormatText_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "view", "ACJ-1",
+            "--extract", "description",
+            "--format", "text",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--extract requires --format json.", stdout);
+    }
+
+    [Fact]
+    public async Task IssueView_Extract_WithSelect_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "view", "ACJ-1",
+            "--extract", "description",
+            "--select", "fields.summary",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--extract cannot be combined with --select, --filter, --sort, --limit, --cursor, --page, --all, or --plain.", stdout);
+    }
+
+    [Fact]
+    public async Task IssueView_Extract_AutoAddsFieldQueryAndWritesRawJson()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\",\"fields\":{\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[]}}}"));
+        await server.StartAsync();
+
+        var args = new[]
+        {
+            "issue", "view", "ACJ-123",
+            "--extract", "description",
+            "--site-url", server.BaseUrl,
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+        Assert.NotNull(server.LastRequest);
+        var requestUri = BuildLastRequestUri(server);
+        var query = ParseQuery(requestUri.Query);
+        Assert.Equal("description", query["fields"]);
+        Assert.DoesNotContain("\"Success\":", stdout, StringComparison.OrdinalIgnoreCase);
+        using var extracted = JsonDocument.Parse(stdout);
+        Assert.Equal("doc", extracted.RootElement.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task IssueView_Extract_MissingField_FailsValidation()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\",\"fields\":{\"summary\":\"Only summary\"}}"));
+        await server.StartAsync();
+
+        var args = new[]
+        {
+            "issue", "view", "ACJ-123",
+            "--extract", "description",
+            "--site-url", server.BaseUrl,
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Could not extract", stdout);
+        Assert.Contains("fields.description", stdout);
+    }
+
+    [Fact]
     public async Task IssueCreate_InBase_AllowsSummarySugarOverride()
     {
         await using var server = new LocalReplayServer();
@@ -966,6 +1059,77 @@ public sealed partial class ProgramE2eTests
         var query = ParseQuery(requestUri.Query);
         Assert.Equal("/rest/api/3/issue/ACJ-123/comment/10001", requestUri.AbsolutePath);
         Assert.Equal("renderedBody", query["expand"]);
+    }
+
+    [Fact]
+    public async Task IssueCommentGet_Extract_WithFormatJsonl_FailsValidation()
+    {
+        var args = new[]
+        {
+            "issue", "comment", "get", "ACJ-123", "10001",
+            "--extract",
+            "--format", "jsonl",
+            "--site-url", "https://example.atlassian.net",
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--extract requires --format json.", stdout);
+    }
+
+    [Fact]
+    public async Task IssueCommentGet_Extract_WritesOnlyBodyJson()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\",\"body\":{\"type\":\"doc\",\"version\":1,\"content\":[]}}"));
+        await server.StartAsync();
+
+        var args = new[]
+        {
+            "issue", "comment", "get", "ACJ-123", "10001",
+            "--extract",
+            "--site-url", server.BaseUrl,
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("\"Success\":", stdout, StringComparison.OrdinalIgnoreCase);
+        using var extracted = JsonDocument.Parse(stdout);
+        Assert.Equal("doc", extracted.RootElement.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task IssueCommentGet_Extract_MissingBody_FailsValidation()
+    {
+        await using var server = new LocalReplayServer();
+        server.EnqueueResponse(new ReplayResponse(
+            200,
+            "OK",
+            new Dictionary<string, string> { ["Content-Type"] = "application/json" },
+            "{\"id\":\"10001\"}"));
+        await server.StartAsync();
+
+        var args = new[]
+        {
+            "issue", "comment", "get", "ACJ-123", "10001",
+            "--extract",
+            "--site-url", server.BaseUrl,
+            "--auth-mode", "bearer",
+            "--bearer-token", "token"
+        };
+
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Could not extract", stdout);
+        Assert.Contains("body", stdout);
     }
 
     [Fact]
@@ -1435,6 +1599,62 @@ public sealed partial class ProgramE2eTests
         var (exitCode, stdout, _) = await InvokeProgramAsync(args);
         Assert.Equal(0, exitCode);
         Assert.Contains("--allow-non-success", stdout);
+    }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("request --help")]
+    [InlineData("schema --help")]
+    [InlineData("issue create --help")]
+    [InlineData("issue --help")]
+    public async Task HelpOutput_DoesNotContainMalformedOptionalArgumentArtifacts(string commandLine)
+    {
+        var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var (exitCode, stdout, _) = await InvokeProgramAsync(args);
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain(" []", stdout);
+        Assert.DoesNotContain(", ]", stdout);
+    }
+
+    [Fact]
+    public async Task HelpOutput_IssueCreate_DescribesProjectPrecedence()
+    {
+        var (exitCode, stdout, _) = await InvokeProgramAsync(["issue", "create", "--help"]);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Overrides positional <project> when both are provided.", stdout);
+    }
+
+    [Fact]
+    public async Task HelpOutput_IssueTransition_ExplainsListRequiresKey()
+    {
+        var (exitCode, stdout, _) = await InvokeProgramAsync(["issue", "transition", "--help"]);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Use `issue transition list <key>` to list available transitions.", stdout);
+    }
+
+    [Fact]
+    public async Task HelpOutput_IssueView_UsesResponseWordingForFields()
+    {
+        var (exitCode, stdout, _) = await InvokeProgramAsync(["issue", "view", "--help"]);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Comma-separated list of fields to include in the response", stdout);
+        Assert.DoesNotContain("include in the reply", stdout, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task HelpOutput_CommandDescriptions_AreConcise()
+    {
+        var (rootExitCode, rootStdout, _) = await InvokeProgramAsync(["--help"]);
+        Assert.Equal(0, rootExitCode);
+        Assert.Contains("Create a Jira issue link.", rootStdout);
+        Assert.DoesNotContain("issueLink). Starts from a default payload", rootStdout, StringComparison.OrdinalIgnoreCase);
+
+        var (issueExitCode, issueStdout, _) = await InvokeProgramAsync(["issue", "--help"]);
+        Assert.Equal(0, issueExitCode);
+        Assert.Contains("Create a Jira issue.", issueStdout);
+        Assert.Contains("Transition an issue.", issueStdout);
+        Assert.DoesNotContain("issue). Starts from a default payload", issueStdout, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("transitions). Starts from a default payload", issueStdout, StringComparison.OrdinalIgnoreCase);
     }
 
 }

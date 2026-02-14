@@ -9,7 +9,7 @@ public static class IssueLinkCommands
 {
     public static Command BuildIssueLinkCommand(IServiceProvider services)
     {
-        var issueLink = new Command("issuelink", "Create Jira issue links (POST /rest/api/3/issueLink). Starts from a default payload, optional --in base payload, then applies sugar flags.");
+        var issueLink = new Command("issuelink", "Create a Jira issue link.");
         var typeOpt = new Option<string?>("--type", "Issue link type name (for example Blocks)");
         var inwardOpt = new Option<string?>("--inward", "Inward issue key (for example ACJ-123)");
         var outwardOpt = new Option<string?>("--outward", "Outward issue key (for example ACJ-456)");

@@ -43,7 +43,7 @@ public static class AgentCommandBuilder
     public static Command BuildSchemaCommand()
     {
         var schema = new Command("schema", "Show machine-readable schema summary for a command.");
-        var commandArg = new Argument<string?>("command", () => null, "Command path.");
+        var commandArg = new Argument<string?>("command", "Command path.") { Arity = ArgumentArity.ZeroOrOne };
         schema.AddArgument(commandArg);
         schema.SetHandler((InvocationContext context) =>
         {

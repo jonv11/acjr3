@@ -86,5 +86,29 @@ public static partial class IssueCommands
         value = parsed;
         return true;
     }
+
+    private static bool TryValidateExtractOutputOptions(OutputPreferences outputPreferences, InvocationContext context)
+    {
+        if (outputPreferences.Format != OutputFormat.Json)
+        {
+            CliOutput.WriteValidationError(context, "--extract requires --format json.");
+            return false;
+        }
+
+        if (outputPreferences.Plain
+            || !string.IsNullOrWhiteSpace(outputPreferences.Select)
+            || !string.IsNullOrWhiteSpace(outputPreferences.Filter)
+            || !string.IsNullOrWhiteSpace(outputPreferences.Sort)
+            || outputPreferences.Limit.HasValue
+            || !string.IsNullOrWhiteSpace(outputPreferences.Cursor)
+            || outputPreferences.Page.HasValue
+            || outputPreferences.All)
+        {
+            CliOutput.WriteValidationError(context, "--extract cannot be combined with --select, --filter, --sort, --limit, --cursor, --page, --all, or --plain.");
+            return false;
+        }
+
+        return true;
+    }
 }
 

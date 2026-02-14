@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Acjr3.Output;
 
 namespace Acjr3.Tests.Http;
@@ -164,6 +165,56 @@ public sealed class RequestExecutorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ExtractPath_Success_WritesOnlyExtractedJson()
+    {
+        var handler = new SequenceHttpMessageHandler(
+            (_, _) => Task.FromResult(JsonResponse(
+                HttpStatusCode.OK,
+                "{\"fields\":{\"description\":{\"type\":\"doc\",\"version\":1,\"content\":[]}},\"id\":\"10001\"}")));
+        var executor = CreateExecutor(handler);
+        var options = CreateOptions(HttpMethod.Get, "/rest/api/3/issue/ACJ-1", extractPath: "fields.description");
+
+        var (exitCode, stdout, _) = await ExecuteAndCaptureAsync(executor, CreateConfig(), options);
+
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("\"Success\":", stdout, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"data\":", stdout, StringComparison.OrdinalIgnoreCase);
+        using var json = JsonDocument.Parse(stdout);
+        Assert.Equal("doc", json.RootElement.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ExtractPath_Missing_ReturnsValidation()
+    {
+        var handler = new SequenceHttpMessageHandler(
+            (_, _) => Task.FromResult(JsonResponse(
+                HttpStatusCode.OK,
+                "{\"fields\":{\"summary\":\"x\"}}")));
+        var executor = CreateExecutor(handler);
+        var options = CreateOptions(HttpMethod.Get, "/rest/api/3/issue/ACJ-1", extractPath: "fields.description");
+
+        var (exitCode, stdout, _) = await ExecuteAndCaptureAsync(executor, CreateConfig(), options);
+
+        Assert.Equal((int)CliExitCode.Validation, exitCode);
+        Assert.Contains("Could not extract", stdout, StringComparison.Ordinal);
+        Assert.Contains("fields.description", stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ExtractPath_NonSuccess_UsesErrorEnvelope()
+    {
+        var handler = new SequenceHttpMessageHandler(
+            (_, _) => Task.FromResult(JsonResponse(HttpStatusCode.NotFound, "{\"error\":\"missing\"}")));
+        var executor = CreateExecutor(handler);
+        var options = CreateOptions(HttpMethod.Get, "/rest/api/3/issue/ACJ-1", extractPath: "fields.description");
+
+        var (exitCode, stdout, _) = await ExecuteAndCaptureAsync(executor, CreateConfig(), options);
+
+        Assert.Equal((int)CliExitCode.NotFound, exitCode);
+        Assert.Contains("\"Success\": false", stdout, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_RetryableException_RetriesThenSucceeds()
     {
         var attempts = 0;
@@ -224,7 +275,8 @@ public sealed class RequestExecutorTests
         HttpMethod method,
         string path,
         string? body = null,
-        bool confirmed = true)
+        bool confirmed = true,
+        string? extractPath = null)
     {
         return new RequestCommandOptions(
             method,
@@ -239,7 +291,8 @@ public sealed class RequestExecutorTests
             true,
             false,
             false,
-            confirmed);
+            confirmed,
+            extractPath);
     }
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string json)

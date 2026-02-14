@@ -14,6 +14,8 @@ public sealed class RequestExecutor(
     OutputRenderer outputRenderer)
 {
     private const string EnvelopeVersion = "1.0";
+    private static readonly JsonSerializerOptions PrettyJsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions CompactJsonOptions = new() { WriteIndented = false };
 
     public async Task<int> ExecuteAsync(
         Acjr3Config config,
@@ -216,6 +218,22 @@ public sealed class RequestExecutor(
             return options.FailOnNonSuccess ? (int)exitCode : 0;
         }
 
+        if (!string.IsNullOrWhiteSpace(options.ExtractPath))
+        {
+            if (options.Output.Format != OutputFormat.Json)
+            {
+                return WriteValidationError("--extract requires --format json.", options.Output);
+            }
+
+            if (!TryExtractDataPath(data, options.ExtractPath!, out var extracted))
+            {
+                return WriteValidationError($"Could not extract '{options.ExtractPath}' from response data.", options.Output);
+            }
+
+            WriteExtractedJson(extracted, options.Output.JsonStyle);
+            return 0;
+        }
+
         var successEnvelope = new CliEnvelope(true, data, null, meta);
         WriteEnvelope(successEnvelope, options.Output);
 
@@ -228,6 +246,35 @@ public sealed class RequestExecutor(
             ? outputRenderer.RenderText(envelope, preferences)
             : outputRenderer.RenderEnvelope(envelope, preferences);
         Console.Out.WriteLine(text);
+    }
+
+    private static void WriteExtractedJson(JsonElement extracted, JsonStyle jsonStyle)
+    {
+        var options = jsonStyle == JsonStyle.Pretty ? PrettyJsonOptions : CompactJsonOptions;
+        Console.Out.WriteLine(JsonSerializer.Serialize(extracted, options));
+    }
+
+    private static bool TryExtractDataPath(object? data, string path, out JsonElement extracted)
+    {
+        extracted = default;
+        if (data is not JsonElement root)
+        {
+            return false;
+        }
+
+        var current = root;
+        foreach (var segment in path.Split('.', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out var nested))
+            {
+                return false;
+            }
+
+            current = nested;
+        }
+
+        extracted = current.Clone();
+        return true;
     }
 
     private async Task<int> ExecutePaginatedAsync(

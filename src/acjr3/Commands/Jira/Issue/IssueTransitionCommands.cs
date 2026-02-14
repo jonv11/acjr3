@@ -12,7 +12,7 @@ public static partial class IssueCommands
 {
     private static Command BuildTransitionCommand(IServiceProvider services)
     {
-        var transition = new Command("transition", "Issue transition commands (POST /rest/api/3/issue/{issueIdOrKey}/transitions). Starts from a default payload, optional --in base payload, then applies sugar flags.");
+        var transition = new Command("transition", "Transition an issue. Use `issue transition list <key>` to list available transitions.");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var toOpt = new Option<string?>("--to", "Target transition name (for example, Done)");
         var idOpt = new Option<string?>("--id", "Target transition ID");
@@ -109,7 +109,7 @@ public static partial class IssueCommands
 
     private static Command BuildTransitionListCommand(IServiceProvider services)
     {
-        var list = new Command("list", "List available transitions for an issue");
+        var list = new Command("list", "List available transitions for an issue key (`issue transition list <key>`).");
         var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
         var expandOpt = new Option<string?>("--expand", "Expand transition response entities");
         var transitionIdOpt = new Option<string?>("--transition-id", "Filter by transition ID");

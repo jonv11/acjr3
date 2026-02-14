@@ -13,4 +13,5 @@ public sealed record RequestCommandOptions(
     bool FailOnNonSuccess,
     bool RetryNonIdempotent,
     bool Paginate,
-    bool Confirmed);
+    bool Confirmed,
+    string? ExtractPath = null);

@@ -12,9 +12,9 @@ public static partial class IssueCommands
 {
     private static Command BuildCreateCommand(IServiceProvider services)
     {
-        var create = new Command("create", "Create a Jira issue (POST /rest/api/3/issue). Starts from a default payload, optional --in base payload, then applies sugar flags.");
-        var projectArg = new Argument<string?>("project", () => null, "Project key (for example, TEST)") { Arity = ArgumentArity.ZeroOrOne };
-        var projectOpt = new Option<string?>("--project", "Project key (for example, TEST)");
+        var create = new Command("create", "Create a Jira issue.");
+        var projectArg = new Argument<string?>("project", "Project key shorthand (for example, TEST).") { Arity = ArgumentArity.ZeroOrOne };
+        var projectOpt = new Option<string?>("--project", "Project key (for example, TEST). Overrides positional <project> when both are provided.");
         var summaryOpt = new Option<string?>("--summary", "Issue summary");
         var typeOpt = new Option<string>("--type", () => "Task", "Issue type (for example, Bug, Task)");
         var descriptionOpt = new Option<string?>("--description", "Issue description");
