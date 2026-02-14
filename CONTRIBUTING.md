@@ -3,6 +3,9 @@
 This project is a Jira Cloud REST API v3 CLI wrapper.  
 Contributions must keep behavior predictable, docs accurate, and command structure aligned with REST paths.
 
+For source-based setup and local command execution, see [docs/developer-setup.md](docs/developer-setup.md).
+User-facing install and usage docs live in [README.md](README.md) and [docs/getting-started.md](docs/getting-started.md).
+
 ## Core Rules
 
 1. Every feature change must include documentation updates.
@@ -22,7 +25,7 @@ Map from `/rest/api/3/...` to CLI as directly as possible:
 - Static URI segment -> command/subcommand token.
 - Path parameter (`{...}`) -> CLI argument.
 - Query parameter -> explicit CLI option.
-- Request body -> flags for common fields and/or `--body` / `--body-file`.
+- Request body -> canonical `--in <PATH|->` plus command-specific sugar flags.
 
 Examples:
 

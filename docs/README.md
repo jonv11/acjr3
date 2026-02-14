@@ -5,30 +5,31 @@ Use this index to find small, task-focused docs.
 ## Navigation
 
 - Repository home: [../README.md](../README.md)
-- Contributor guide: [../CONTRIBUTING.md](../CONTRIBUTING.md)
-- Commands index: [commands/README.md](commands/README.md)
-- Use-case playbooks index: [use-cases/README.md](use-cases/README.md)
-- Archive (historical context): [archive/README.md](archive/README.md)
+- Contributor policy: [../CONTRIBUTING.md](../CONTRIBUTING.md)
 
-## Quick Paths
+## Users
 
-- New to the project: [getting-started.md](getting-started.md)
-- Setting environment variables: [configuration.md](configuration.md)
-- Looking for command syntax: [commands/README.md](commands/README.md)
-- Shell completion examples: [commands/completion.md](commands/completion.md)
+- Start here: [getting-started.md](getting-started.md)
+- Configure auth and runtime settings: [configuration.md](configuration.md)
+- Command index: [commands/README.md](commands/README.md)
+- Runtime behavior and exit codes: [behavior.md](behavior.md)
 - Scenario playbooks: [use-cases/README.md](use-cases/README.md)
-- Understanding runtime behavior: [behavior.md](behavior.md)
-- Navigating source/tests: [codebase-structure.md](codebase-structure.md)
-- Historical context (non-operational): [archive/README.md](archive/README.md)
 
-## By Topic
+## Contributors
 
-### Setup
+- Contributor rules and workflow: [../CONTRIBUTING.md](../CONTRIBUTING.md)
+- Source build/run/test setup: [developer-setup.md](developer-setup.md)
+- Codebase layout: [codebase-structure.md](codebase-structure.md)
+- Documentation conventions: [doc-conventions.md](doc-conventions.md)
 
-- [getting-started.md](getting-started.md)
-- [configuration.md](configuration.md)
+## AI Agents
 
-### Commands
+- Agent instructions: [../AGENTS.md](../AGENTS.md)
+- Contributor policy and guardrails: [../CONTRIBUTING.md](../CONTRIBUTING.md)
+- Command docs for executable examples: [commands/README.md](commands/README.md)
+- Machine-readable command surface: [commands/agent-capabilities.md](commands/agent-capabilities.md)
+
+## Commands
 
 - [commands/README.md](commands/README.md)
 - [commands/request.md](commands/request.md)
@@ -37,15 +38,9 @@ Use this index to find small, task-focused docs.
 - [commands/agent-capabilities.md](commands/agent-capabilities.md)
 - [commands/completion.md](commands/completion.md)
 
-### Workflows
+## Historical Archive (Non-Operational)
 
-- [use-cases/README.md](use-cases/README.md)
-
-### Internals And Behavior
-
-- [behavior.md](behavior.md)
-- [codebase-structure.md](codebase-structure.md)
-- [doc-conventions.md](doc-conventions.md)
+- Historical docs and past plans: [archive/README.md](archive/README.md)
 
 ## Principles
 

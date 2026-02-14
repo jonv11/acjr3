@@ -2,71 +2,58 @@
 
 `acjr3` is a .NET 8 CLI proxy for Jira Cloud REST API v3. It provides a universal `request` command plus Jira shortcut commands with consistent JSON envelopes, deterministic exit codes, and strict validation for mutating operations.
 
-## Quickstart
+## Install (Users)
 
 ```bash
-dotnet build acjr3.sln
-dotnet test acjr3.sln
-dotnet run --project src/acjr3 -- --help
+# install an artifact from this repository's GitHub Releases page
+# then ensure the acjr3 binary is on your PATH
+acjr3 --help
 ```
 
-## Most Common Workflows
+Release artifacts are published for `win-x64`, `linux-x64`, and `osx-x64`.
+
+## Quickstart (Users)
 
 Run these after setting required environment variables.
 
-1. Validate configuration and auth
-
 ```bash
-dotnet run --project src/acjr3 -- config check
+acjr3 config check
 ```
 
-2. Search issues
-
 ```bash
-dotnet run --project src/acjr3 -- search list --jql "project = ACJ ORDER BY updated DESC" --max-results 20 --compact
-```
-
-3. View one issue
-
-```bash
-dotnet run --project src/acjr3 -- issue view ACJ-123 --fields "summary,status,assignee,priority" --compact
-```
-
-4. Create an issue
-
-```bash
-dotnet run --project src/acjr3 -- issue create ACJ --summary "Investigate API timeout" --type Task --yes
-```
-
-5. Add a comment
-
-```bash
-dotnet run --project src/acjr3 -- issue comment add ACJ-123 --text "Working on this now." --yes
+acjr3 search list --jql "project = ACJ ORDER BY updated DESC" --max-results 20 --compact
+acjr3 issue view ACJ-123 --fields "summary,status,assignee,priority" --compact
+acjr3 issue create ACJ --summary "Investigate API timeout" --type Task --yes
+acjr3 issue comment add ACJ-123 --text "Working on this now." --yes
 ```
 
 ## Configuration And Auth
 
 Configuration is environment-variable based, with optional per-invocation runtime overrides on API/runtime commands.
 
-- Canonical reference: [docs/configuration.md](docs/configuration.md)
-- Getting started: [docs/getting-started.md](docs/getting-started.md)
+- User setup guide: [docs/getting-started.md](docs/getting-started.md)
+- Configuration reference: [docs/configuration.md](docs/configuration.md)
 
-## Output And Exit Codes
+## Command Reference
 
-- Default output is a JSON envelope: `success`, `data`, `error`, `meta`.
-- Formats: `--format json|jsonl|text`
-- JSON style: `--pretty` or `--compact`
-- Output shaping: `--select`, `--filter`, `--sort`, `--limit`, `--cursor`, `--page`, `--all`, `--plain`
-- Exit codes: `0` success, `1` validation, `2` auth/authz, `3` not found, `4` conflict, `5` network/timeout, `10+` internal/tool-specific
+- Commands index: [docs/commands/README.md](docs/commands/README.md)
+- Jira shortcut commands: [docs/commands/jira-shortcuts.md](docs/commands/jira-shortcuts.md)
+- Universal request command: [docs/commands/request.md](docs/commands/request.md)
 
-See [docs/behavior.md](docs/behavior.md) for the full runtime contract.
+## Runtime Contract
 
-## Docs
+Behavior, output envelope, and exit codes: [docs/behavior.md](docs/behavior.md)
 
-- Docs hub: [docs/README.md](docs/README.md)
-- Command reference: [docs/commands/README.md](docs/commands/README.md)
-- Use-case playbooks: [docs/use-cases/README.md](docs/use-cases/README.md)
-- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+## Contributors
+
+- Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Source-based setup and local run workflow: [docs/developer-setup.md](docs/developer-setup.md)
+
+## For AI Agents
+
+- Repository agent instructions: [AGENTS.md](AGENTS.md)
+- Contributor and workflow policy: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Documentation index: [docs/README.md](docs/README.md)
 
 ## External Reference
 

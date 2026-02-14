@@ -1,42 +1,43 @@
-# Getting Started
+# Getting Started (Users)
 
-Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Commands](commands/README.md)
+Navigation: [Docs Home](README.md) | [Configuration](configuration.md) | [Commands](commands/README.md) | [Developer Setup](developer-setup.md)
 
-## Requirements
+This page is for end users running an installed `acjr3` binary.
 
-- .NET 8 SDK
+## Prerequisites
+
 - Jira Cloud site URL (for example `https://your-domain.atlassian.net`)
 - Jira credentials for one auth mode (`basic` or `bearer`)
 - For `basic`: email + API token
 - For `bearer`: bearer token
 
-## Build and test
+## Install
+
+Install `acjr3` from this repository's GitHub Releases page and place the binary on your `PATH`.
+
+Release artifacts are produced for:
+- `win-x64` (`.zip`)
+- `linux-x64` (`.tar.gz`)
+- `osx-x64` (`.tar.gz`)
+
+If you prefer to build from source, use [developer-setup.md](developer-setup.md).
+
+## First Command
 
 ```bash
-dotnet build acjr3.sln
-dotnet test acjr3.sln
+acjr3 --help
 ```
 
-## First command
+## Minimal Setup Check
+
+After setting required environment variables:
 
 ```bash
-dotnet run --project src/acjr3 -- --help
+acjr3 config check
 ```
 
-## Minimal setup check
+## Next Steps
 
-After setting environment variables, run:
-
-```bash
-dotnet run --project src/acjr3 -- config check
-```
-
-## Build distributable binary
-
-Example (Linux x64):
-
-```bash
-dotnet publish src/acjr3/acjr3.csproj -c Release -p:PublishProfile=SingleFileSelfContained -r linux-x64 --self-contained true
-```
-
-Change runtime identifier (`-r`) as needed, for example `win-x64` or `osx-x64`.
+- Configuration reference: [configuration.md](configuration.md)
+- Command reference: [commands/README.md](commands/README.md)
+- Runtime behavior and exit codes: [behavior.md](behavior.md)
