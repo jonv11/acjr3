@@ -13,13 +13,13 @@ public static partial class IssueCommands
     private static Command BuildCommentListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List comments for an issue");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum comments to return");
-        var orderByOpt = new Option<string?>("--order-by", "Order by expression");
-        var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum comments to return" };
+        var orderByOpt = new Option<string?>("--order-by") { Description = "Order by expression" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand comment response entities" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         list.AddArgument(keyArg);
         list.AddOption(startAtOpt);
@@ -83,12 +83,12 @@ public static partial class IssueCommands
     private static Command BuildCommentGetCommand(IServiceProvider services)
     {
         var get = new Command("get", "Get one comment from an issue");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
-        var extractOpt = new Option<bool>("--extract", "Extract and return only the comment body JSON.");
-        var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var idArg = new Argument<string>("id") { Description = "Comment ID", Arity = ArgumentArity.ExactlyOne };
+        var extractOpt = new Option<bool>("--extract") { Description = "Extract and return only the comment body JSON." };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand comment response entities" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         get.AddArgument(keyArg);
         get.AddArgument(idArg);
@@ -140,4 +140,6 @@ public static partial class IssueCommands
     }
 
 }
+
+
 

@@ -12,10 +12,8 @@ public static partial class IssueCommands
 {
     private static bool WasOptionSupplied(ParseResult parseResult, string alias)
     {
-        return parseResult.CommandResult
-            .Children
-            .OfType<System.CommandLine.Parsing.OptionResult>()
-            .Any(option => option.Option.HasAlias(alias) && option.Tokens.Count > 0);
+        var optionResult = parseResult.GetResult(alias) as OptionResult;
+        return optionResult is not null && optionResult.Tokens.Count > 0;
     }
 
     private static bool TryParseDescriptionFormat(string raw, InvocationContext context, out DescriptionFileFormat format)

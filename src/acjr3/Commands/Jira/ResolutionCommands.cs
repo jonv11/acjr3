@@ -16,12 +16,12 @@ public static class ResolutionCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira resolutions");
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of resolutions to return");
-        var idOpt = new Option<string?>("--id", "Comma-separated resolution IDs");
-        var onlyDefaultOpt = new Option<string?>("--only-default", "Filter default resolutions only (true|false)");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of resolutions to return" };
+        var idOpt = new Option<string?>("--id") { Description = "Comma-separated resolution IDs" };
+        var onlyDefaultOpt = new Option<string?>("--only-default") { Description = "Filter default resolutions only (true|false)" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(idOpt);
@@ -103,6 +103,7 @@ public static class ResolutionCommands
         return true;
     }
 }
+
 
 
 

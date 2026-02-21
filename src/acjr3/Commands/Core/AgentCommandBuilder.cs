@@ -43,7 +43,7 @@ public static class AgentCommandBuilder
     public static Command BuildSchemaCommand()
     {
         var schema = new Command("schema", "Show machine-readable schema summary for a command.");
-        var commandArg = new Argument<string?>("command", "Command path.") { Arity = ArgumentArity.ZeroOrOne };
+        var commandArg = new Argument<string?>("command") { Description = "Command path.", Arity = ArgumentArity.ZeroOrOne };
         schema.AddArgument(commandArg);
         schema.SetHandler((InvocationContext context) =>
         {
@@ -67,7 +67,7 @@ public static class AgentCommandBuilder
     public static Command BuildDoctorCommand(IServiceProvider services)
     {
         var doctor = new Command("doctor", "Run environment, auth, and cache diagnostics.");
-        var checkNetworkOpt = new Option<bool>("--check-network", "Perform a lightweight network check.");
+        var checkNetworkOpt = new Option<bool>("--check-network") { Description = "Perform a lightweight network check." };
         doctor.AddOption(checkNetworkOpt);
         doctor.SetHandler(async (InvocationContext context) =>
         {
@@ -160,3 +160,5 @@ public static class AgentCommandBuilder
         return auth;
     }
 }
+
+

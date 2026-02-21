@@ -13,12 +13,12 @@ public static partial class IssueCommands
     private static Command BuildDeleteCommand(IServiceProvider services)
     {
         var delete = new Command("delete", "Delete a Jira issue (DELETE /rest/api/3/issue/{issueIdOrKey}).");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var deleteSubtasksOpt = new Option<string?>("--delete-subtasks", "Jira query parameter deleteSubtasks=true|false");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var deleteSubtasksOpt = new Option<string?>("--delete-subtasks") { Description = "Jira query parameter deleteSubtasks=true|false" };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         delete.AddArgument(keyArg);
         delete.AddOption(deleteSubtasksOpt);
@@ -66,5 +66,7 @@ public static partial class IssueCommands
         return delete;
     }
 }
+
+
 
 

@@ -13,24 +13,24 @@ public static partial class IssueCommands
     private static Command BuildUpdateCommand(IServiceProvider services)
     {
         var update = new Command("update", "Update a Jira issue (PUT /rest/api/3/issue/{issueIdOrKey}). Starts from a default payload, optional --in base payload, then applies sugar flags.");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var projectOpt = new Option<string?>("--project", "Project key");
-        var summaryOpt = new Option<string?>("--summary", "Issue summary");
-        var typeOpt = new Option<string?>("--type", "Issue type (for example, Bug, Task)");
-        var descriptionOpt = new Option<string?>("--description", "Issue description");
-        var fieldOpt = new Option<string?>("--field", "Field key to update when using --field-file (for example, description, customfield_123)");
-        var fieldFileOpt = new Option<string?>("--field-file", "Read field value from file path");
-        var fieldFormatOpt = new Option<string>("--field-format", () => "adf", "Field file format: json|adf");
-        var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var notifyUsersOpt = new Option<string?>("--notify-users", "Jira query parameter notifyUsers=true|false");
-        var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Jira query parameter overrideScreenSecurity=true|false");
-        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Jira query parameter overrideEditableFlag=true|false");
-        var returnIssueOpt = new Option<string?>("--return-issue", "Jira query parameter returnIssue=true|false");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var projectOpt = new Option<string?>("--project") { Description = "Project key" };
+        var summaryOpt = new Option<string?>("--summary") { Description = "Issue summary" };
+        var typeOpt = new Option<string?>("--type") { Description = "Issue type (for example, Bug, Task)" };
+        var descriptionOpt = new Option<string?>("--description") { Description = "Issue description" };
+        var fieldOpt = new Option<string?>("--field") { Description = "Field key to update when using --field-file (for example, description, customfield_123)" };
+        var fieldFileOpt = new Option<string?>("--field-file") { Description = "Read field value from file path" };
+        var fieldFormatOpt = new Option<string>("--field-format") { DefaultValueFactory = _ => "adf", Description = "Field file format: json|adf" };
+        var assigneeOpt = new Option<string?>("--assignee") { Description = "Assignee accountId" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var notifyUsersOpt = new Option<string?>("--notify-users") { Description = "Jira query parameter notifyUsers=true|false" };
+        var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security") { Description = "Jira query parameter overrideScreenSecurity=true|false" };
+        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag") { Description = "Jira query parameter overrideEditableFlag=true|false" };
+        var returnIssueOpt = new Option<string?>("--return-issue") { Description = "Jira query parameter returnIssue=true|false" };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         update.AddArgument(keyArg);
         update.AddOption(projectOpt);
@@ -162,4 +162,6 @@ public static partial class IssueCommands
         return update;
     }
 }
+
+
 

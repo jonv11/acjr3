@@ -19,15 +19,15 @@ public static class RuntimeOverrideOptions
 
     public static void AddRuntimeOverrideOptions(Command command)
     {
-        command.AddGlobalOption(new Option<string?>("--site-url", "Override ACJR3_SITE_URL for this invocation."));
-        command.AddGlobalOption(new Option<string?>("--auth-mode", "Override ACJR3_AUTH_MODE (basic|bearer) for this invocation."));
-        command.AddGlobalOption(new Option<string?>("--email", "Override ACJR3_EMAIL for this invocation."));
-        command.AddGlobalOption(new Option<string?>("--api-token", "Override ACJR3_API_TOKEN for this invocation."));
-        command.AddGlobalOption(new Option<string?>("--bearer-token", "Override ACJR3_BEARER_TOKEN for this invocation."));
-        command.AddGlobalOption(new Option<int?>("--timeout-seconds", "Override ACJR3_TIMEOUT_SECONDS for this invocation."));
-        command.AddGlobalOption(new Option<int?>("--max-retries", "Override ACJR3_MAX_RETRIES for this invocation."));
-        command.AddGlobalOption(new Option<int?>("--retry-base-delay-ms", "Override ACJR3_RETRY_BASE_DELAY_MS for this invocation."));
-        command.AddGlobalOption(new Option<string?>("--openapi-cache-path", "Override ACJR3_OPENAPI_CACHE_PATH for this invocation."));
+        command.AddGlobalOption(new Option<string?>("--site-url") { Description = "Override ACJR3_SITE_URL for this invocation." });
+        command.AddGlobalOption(new Option<string?>("--auth-mode") { Description = "Override ACJR3_AUTH_MODE (basic|bearer) for this invocation." });
+        command.AddGlobalOption(new Option<string?>("--email") { Description = "Override ACJR3_EMAIL for this invocation." });
+        command.AddGlobalOption(new Option<string?>("--api-token") { Description = "Override ACJR3_API_TOKEN for this invocation." });
+        command.AddGlobalOption(new Option<string?>("--bearer-token") { Description = "Override ACJR3_BEARER_TOKEN for this invocation." });
+        command.AddGlobalOption(new Option<int?>("--timeout-seconds") { Description = "Override ACJR3_TIMEOUT_SECONDS for this invocation." });
+        command.AddGlobalOption(new Option<int?>("--max-retries") { Description = "Override ACJR3_MAX_RETRIES for this invocation." });
+        command.AddGlobalOption(new Option<int?>("--retry-base-delay-ms") { Description = "Override ACJR3_RETRY_BASE_DELAY_MS for this invocation." });
+        command.AddGlobalOption(new Option<string?>("--openapi-cache-path") { Description = "Override ACJR3_OPENAPI_CACHE_PATH for this invocation." });
     }
 
     public static void ApplyProcessConfigOverrides(string[] args)
@@ -55,3 +55,4 @@ public static class RuntimeOverrideOptions
         }
     }
 }
+

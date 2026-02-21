@@ -13,14 +13,14 @@ public static partial class IssueCommands
     private static Command BuildTransitionCommand(IServiceProvider services)
     {
         var transition = new Command("transition", "Transition an issue. Use `issue transition list <key>` to list available transitions.");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var toOpt = new Option<string?>("--to", "Target transition name (for example, Done)");
-        var idOpt = new Option<string?>("--id", "Target transition ID");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var toOpt = new Option<string?>("--to") { Description = "Target transition name (for example, Done)" };
+        var idOpt = new Option<string?>("--id") { Description = "Target transition ID" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         transition.AddArgument(keyArg);
         transition.AddOption(toOpt);
         transition.AddOption(idOpt);
@@ -110,14 +110,14 @@ public static partial class IssueCommands
     private static Command BuildTransitionListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List available transitions for an issue key (`issue transition list <key>`).");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var expandOpt = new Option<string?>("--expand", "Expand transition response entities");
-        var transitionIdOpt = new Option<string?>("--transition-id", "Filter by transition ID");
-        var skipRemoteOnlyConditionOpt = new Option<string?>("--skip-remote-only-condition", "Skip remote-only condition check (true|false)");
-        var includeUnavailableTransitionsOpt = new Option<string?>("--include-unavailable-transitions", "Include unavailable transitions (true|false)");
-        var sortByOpsBarAndStatusOpt = new Option<string?>("--sort-by-ops-bar-and-status", "Sort by ops bar and status (true|false)");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand transition response entities" };
+        var transitionIdOpt = new Option<string?>("--transition-id") { Description = "Filter by transition ID" };
+        var skipRemoteOnlyConditionOpt = new Option<string?>("--skip-remote-only-condition") { Description = "Skip remote-only condition check (true|false)" };
+        var includeUnavailableTransitionsOpt = new Option<string?>("--include-unavailable-transitions") { Description = "Include unavailable transitions (true|false)" };
+        var sortByOpsBarAndStatusOpt = new Option<string?>("--sort-by-ops-bar-and-status") { Description = "Sort by ops bar and status (true|false)" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         list.AddArgument(keyArg);
         list.AddOption(expandOpt);
@@ -258,4 +258,6 @@ public static partial class IssueCommands
         }
     }
 }
+
+
 

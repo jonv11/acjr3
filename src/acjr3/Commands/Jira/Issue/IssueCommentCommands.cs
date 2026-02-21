@@ -25,16 +25,16 @@ public static partial class IssueCommands
     private static Command BuildCommentAddCommand(IServiceProvider services)
     {
         var add = new Command("add", "Add a comment to an issue (POST /rest/api/3/issue/{issueIdOrKey}/comment). Starts from a default payload, optional --in base payload, then applies sugar flags.");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var textOpt = new Option<string?>("--text", "Comment text");
-        var textFileOpt = new Option<string?>("--text-file", "Read comment body node from file path");
-        var textFormatOpt = new Option<string>("--text-format", () => "adf", "Comment text file format: json|adf");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var textOpt = new Option<string?>("--text") { Description = "Comment text" };
+        var textFileOpt = new Option<string?>("--text-file") { Description = "Read comment body node from file path" };
+        var textFormatOpt = new Option<string>("--text-format") { DefaultValueFactory = _ => "adf", Description = "Comment text file format: json|adf" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand comment response entities" };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         add.AddArgument(keyArg);
         add.AddOption(textOpt);
@@ -117,19 +117,19 @@ public static partial class IssueCommands
     private static Command BuildCommentUpdateCommand(IServiceProvider services)
     {
         var update = new Command("update", "Update an issue comment (PUT /rest/api/3/issue/{issueIdOrKey}/comment/{id}). Starts from a default payload, optional --in base payload, then applies sugar flags.");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
-        var textOpt = new Option<string?>("--text", "Comment text");
-        var textFileOpt = new Option<string?>("--text-file", "Read comment body node from file path");
-        var textFormatOpt = new Option<string>("--text-format", () => "adf", "Comment text file format: json|adf");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var notifyUsersOpt = new Option<string?>("--notify-users", "Notify users (true|false)");
-        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
-        var expandOpt = new Option<string?>("--expand", "Expand comment response entities");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var idArg = new Argument<string>("id") { Description = "Comment ID", Arity = ArgumentArity.ExactlyOne };
+        var textOpt = new Option<string?>("--text") { Description = "Comment text" };
+        var textFileOpt = new Option<string?>("--text-file") { Description = "Read comment body node from file path" };
+        var textFormatOpt = new Option<string>("--text-format") { DefaultValueFactory = _ => "adf", Description = "Comment text file format: json|adf" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var notifyUsersOpt = new Option<string?>("--notify-users") { Description = "Notify users (true|false)" };
+        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag") { Description = "Override editable flag (true|false)" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand comment response entities" };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         update.AddArgument(keyArg);
         update.AddArgument(idArg);
@@ -224,12 +224,12 @@ public static partial class IssueCommands
     private static Command BuildCommentDeleteCommand(IServiceProvider services)
     {
         var delete = new Command("delete", "Delete an issue comment (DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}).");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var idArg = new Argument<string>("id", "Comment ID") { Arity = ArgumentArity.ExactlyOne };
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var idArg = new Argument<string>("id") { Description = "Comment ID", Arity = ArgumentArity.ExactlyOne };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         delete.AddArgument(keyArg);
         delete.AddArgument(idArg);
@@ -270,3 +270,5 @@ public static partial class IssueCommands
         return delete;
     }
 }
+
+

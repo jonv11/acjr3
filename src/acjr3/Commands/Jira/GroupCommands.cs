@@ -16,14 +16,14 @@ public static class GroupCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira groups");
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of groups to return");
-        var groupIdOpt = new Option<string?>("--group-id", "Filter by group ID");
-        var groupNameOpt = new Option<string?>("--group-name", "Filter by group name");
-        var accessTypeOpt = new Option<string?>("--access-type", "Filter by access type");
-        var applicationKeyOpt = new Option<string?>("--application-key", "Filter by application key");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of groups to return" };
+        var groupIdOpt = new Option<string?>("--group-id") { Description = "Filter by group ID" };
+        var groupNameOpt = new Option<string?>("--group-name") { Description = "Filter by group name" };
+        var accessTypeOpt = new Option<string?>("--access-type") { Description = "Filter by access type" };
+        var applicationKeyOpt = new Option<string?>("--application-key") { Description = "Filter by application key" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(groupIdOpt);
@@ -82,6 +82,7 @@ public static class GroupCommands
         return list;
     }
 }
+
 
 
 

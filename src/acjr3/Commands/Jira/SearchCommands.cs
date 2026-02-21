@@ -16,16 +16,16 @@ public static class SearchCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "Search issues using JQL or filters");
-        var projectOpt = new Option<string>("--project", "Project key");
-        var statusOpt = new Option<string>("--status", "Status filter");
-        var assigneeOpt = new Option<string>("--assignee", "Assignee filter");
-        var jqlOpt = new Option<string>("--jql", "Custom JQL query");
-        var jqlFileOpt = new Option<string?>("--jql-file", "Read JQL text from file path");
-        var fieldsOpt = new Option<string?>("--fields", "Comma-separated fields to return");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum results per page");
-        var nextPageTokenOpt = new Option<string?>("--next-page-token", "Token for next page from previous search response");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var projectOpt = new Option<string>("--project") { Description = "Project key" };
+        var statusOpt = new Option<string>("--status") { Description = "Status filter" };
+        var assigneeOpt = new Option<string>("--assignee") { Description = "Assignee filter" };
+        var jqlOpt = new Option<string>("--jql") { Description = "Custom JQL query" };
+        var jqlFileOpt = new Option<string?>("--jql-file") { Description = "Read JQL text from file path" };
+        var fieldsOpt = new Option<string?>("--fields") { Description = "Comma-separated fields to return" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum results per page" };
+        var nextPageTokenOpt = new Option<string?>("--next-page-token") { Description = "Token for next page from previous search response" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(projectOpt);
         list.AddOption(statusOpt);
         list.AddOption(assigneeOpt);
@@ -117,6 +117,7 @@ public static class SearchCommands
         return list;
     }
 }
+
 
 
 

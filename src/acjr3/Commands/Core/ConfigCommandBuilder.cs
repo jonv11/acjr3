@@ -65,11 +65,11 @@ public static class ConfigCommandBuilder
             CliEnvelopeWriter.Write(context, null, output, true, BuildConfigSnapshot(), null, (int)CliExitCode.Success);
         });
 
-        var keyArg = new Argument<string>("key", "Environment variable key (for example ACJR3_SITE_URL).");
-        var valueArg = new Argument<string>("value", "Environment variable value.");
-        var targetOpt = new Option<string>("--target", () => "user", "Environment target: process|user.");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
+        var keyArg = new Argument<string>("key") { Description = "Environment variable key (for example ACJR3_SITE_URL)." };
+        var valueArg = new Argument<string>("value") { Description = "Environment variable value." };
+        var targetOpt = new Option<string>("--target") { DefaultValueFactory = _ => "user", Description = "Environment target: process|user." };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
         set.AddArgument(keyArg);
         set.AddArgument(valueArg);
         set.AddOption(targetOpt);
@@ -108,18 +108,18 @@ public static class ConfigCommandBuilder
             CliEnvelopeWriter.Write(context, null, output, true, new { updated = key, target = targetRaw, snapshot = BuildConfigSnapshot() }, null, (int)CliExitCode.Success);
         });
 
-        var initTargetOpt = new Option<string>("--target", () => "user", "Environment target: process|user.");
-        var siteUrlOpt = new Option<string?>("--site-url", "Jira site URL.");
-        var authModeOpt = new Option<string?>("--auth-mode", "Auth mode: basic|bearer.");
-        var emailOpt = new Option<string?>("--email", "Email for basic auth.");
-        var apiTokenOpt = new Option<string?>("--api-token", "API token for basic auth.");
-        var bearerTokenOpt = new Option<string?>("--bearer-token", "Bearer token for bearer auth.");
-        var timeoutSecondsOpt = new Option<int?>("--timeout-seconds", "HTTP timeout in seconds.");
-        var maxRetriesOpt = new Option<int?>("--max-retries", "Maximum retry attempts.");
-        var retryBaseDelayMsOpt = new Option<int?>("--retry-base-delay-ms", "Retry base delay in milliseconds.");
-        var openApiCachePathOpt = new Option<string?>("--openapi-cache-path", "OpenAPI cache file path.");
-        var initYesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var initForceOpt = new Option<bool>("--force", "Force mutating operations.");
+        var initTargetOpt = new Option<string>("--target") { DefaultValueFactory = _ => "user", Description = "Environment target: process|user." };
+        var siteUrlOpt = new Option<string?>("--site-url") { Description = "Jira site URL." };
+        var authModeOpt = new Option<string?>("--auth-mode") { Description = "Auth mode: basic|bearer." };
+        var emailOpt = new Option<string?>("--email") { Description = "Email for basic auth." };
+        var apiTokenOpt = new Option<string?>("--api-token") { Description = "API token for basic auth." };
+        var bearerTokenOpt = new Option<string?>("--bearer-token") { Description = "Bearer token for bearer auth." };
+        var timeoutSecondsOpt = new Option<int?>("--timeout-seconds") { Description = "HTTP timeout in seconds." };
+        var maxRetriesOpt = new Option<int?>("--max-retries") { Description = "Maximum retry attempts." };
+        var retryBaseDelayMsOpt = new Option<int?>("--retry-base-delay-ms") { Description = "Retry base delay in milliseconds." };
+        var openApiCachePathOpt = new Option<string?>("--openapi-cache-path") { Description = "OpenAPI cache file path." };
+        var initYesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var initForceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
 
         init.AddOption(initTargetOpt);
         init.AddOption(siteUrlOpt);
@@ -241,3 +241,4 @@ public static class ConfigCommandBuilder
         }
     }
 }
+
