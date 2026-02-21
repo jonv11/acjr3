@@ -10,14 +10,14 @@ public static class IssueLinkCommands
     public static Command BuildIssueLinkCommand(IServiceProvider services)
     {
         var issueLink = new Command("issuelink", "Create a Jira issue link.");
-        var typeOpt = new Option<string?>("--type", "Issue link type name (for example Blocks)");
-        var inwardOpt = new Option<string?>("--inward", "Inward issue key (for example ACJ-123)");
-        var outwardOpt = new Option<string?>("--outward", "Outward issue key (for example ACJ-456)");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var typeOpt = new Option<string?>("--type") { Description = "Issue link type name (for example Blocks)" };
+        var inwardOpt = new Option<string?>("--inward") { Description = "Inward issue key (for example ACJ-123)" };
+        var outwardOpt = new Option<string?>("--outward") { Description = "Outward issue key (for example ACJ-456)" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         issueLink.AddOption(typeOpt);
         issueLink.AddOption(inwardOpt);
@@ -112,6 +112,7 @@ public static class IssueLinkCommands
         return issueLink;
     }
 }
+
 
 
 

@@ -13,20 +13,20 @@ public static partial class IssueCommands
     private static Command BuildCreateCommand(IServiceProvider services)
     {
         var create = new Command("create", "Create a Jira issue.");
-        var projectArg = new Argument<string?>("project", "Project key shorthand (for example, TEST).") { Arity = ArgumentArity.ZeroOrOne };
-        var projectOpt = new Option<string?>("--project", "Project key (for example, TEST). Overrides positional <project> when both are provided.");
-        var summaryOpt = new Option<string?>("--summary", "Issue summary");
-        var typeOpt = new Option<string>("--type", () => "Task", "Issue type (for example, Bug, Task)");
-        var descriptionOpt = new Option<string?>("--description", "Issue description");
-        var descriptionFileOpt = new Option<string?>("--description-file", "Read description content from file path");
-        var descriptionFormatOpt = new Option<string>("--description-format", () => "adf", "Description file format: json|adf");
-        var assigneeOpt = new Option<string?>("--assignee", "Assignee accountId");
-        var inOpt = new Option<string?>("--in", "Path to request payload file, or '-' for stdin.");
-        var updateHistoryOpt = new Option<string?>("--update-history", "Jira query parameter updateHistory=true|false");
-        var yesOpt = new Option<bool>("--yes", "Confirm mutating operations.");
-        var forceOpt = new Option<bool>("--force", "Force mutating operations.");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit.");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var projectArg = new Argument<string?>("project") { Description = "Project key shorthand (for example, TEST).", Arity = ArgumentArity.ZeroOrOne };
+        var projectOpt = new Option<string?>("--project") { Description = "Project key (for example, TEST). Overrides positional <project> when both are provided." };
+        var summaryOpt = new Option<string?>("--summary") { Description = "Issue summary" };
+        var typeOpt = new Option<string>("--type") { DefaultValueFactory = _ => "Task", Description = "Issue type (for example, Bug, Task)" };
+        var descriptionOpt = new Option<string?>("--description") { Description = "Issue description" };
+        var descriptionFileOpt = new Option<string?>("--description-file") { Description = "Read description content from file path" };
+        var descriptionFormatOpt = new Option<string>("--description-format") { DefaultValueFactory = _ => "adf", Description = "Description file format: json|adf" };
+        var assigneeOpt = new Option<string?>("--assignee") { Description = "Assignee accountId" };
+        var inOpt = new Option<string?>("--in") { Description = "Path to request payload file, or '-' for stdin." };
+        var updateHistoryOpt = new Option<string?>("--update-history") { Description = "Jira query parameter updateHistory=true|false" };
+        var yesOpt = new Option<bool>("--yes") { Description = "Confirm mutating operations." };
+        var forceOpt = new Option<bool>("--force") { Description = "Force mutating operations." };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit." };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         create.AddArgument(projectArg);
         create.AddOption(projectOpt);
         create.AddOption(summaryOpt);
@@ -162,4 +162,6 @@ public static partial class IssueCommands
         return create;
     }
 }
+
+
 

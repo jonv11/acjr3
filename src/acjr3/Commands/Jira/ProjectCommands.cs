@@ -26,15 +26,15 @@ public static class ProjectCommands
     private static Command BuildVersionListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all versions for a project");
-        var projectOpt = new Option<string>("--project", "Project key") { IsRequired = true };
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of versions to return");
-        var orderByOpt = new Option<string?>("--order-by", "Order by expression");
-        var queryOpt = new Option<string?>("--query", "Filter versions by text");
-        var statusOpt = new Option<string?>("--status", "Version status filter");
-        var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var projectOpt = new Option<string>("--project") { Description = "Project key", Required = true };
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of versions to return" };
+        var orderByOpt = new Option<string?>("--order-by") { Description = "Order by expression" };
+        var queryOpt = new Option<string?>("--query") { Description = "Filter versions by text" };
+        var statusOpt = new Option<string?>("--status") { Description = "Version status filter" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand related entities" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(projectOpt);
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
@@ -98,21 +98,21 @@ public static class ProjectCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira projects");
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of projects to return");
-        var orderByOpt = new Option<string?>("--order-by", "Order by expression");
-        var idOpt = new Option<string?>("--id", "Comma-separated project IDs");
-        var keysOpt = new Option<string?>("--keys", "Comma-separated project keys");
-        var queryOpt = new Option<string?>("--query", "Project query text");
-        var typeKeyOpt = new Option<string?>("--type-key", "Project type key");
-        var categoryIdOpt = new Option<int?>("--category-id", "Project category ID");
-        var actionOpt = new Option<string?>("--action", "Action scope filter");
-        var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var statusOpt = new Option<string?>("--status", "Project status filter");
-        var propertiesOpt = new Option<string?>("--properties", "Comma-separated project properties");
-        var propertyQueryOpt = new Option<string?>("--property-query", "Property query string");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of projects to return" };
+        var orderByOpt = new Option<string?>("--order-by") { Description = "Order by expression" };
+        var idOpt = new Option<string?>("--id") { Description = "Comma-separated project IDs" };
+        var keysOpt = new Option<string?>("--keys") { Description = "Comma-separated project keys" };
+        var queryOpt = new Option<string?>("--query") { Description = "Project query text" };
+        var typeKeyOpt = new Option<string?>("--type-key") { Description = "Project type key" };
+        var categoryIdOpt = new Option<int?>("--category-id") { Description = "Project category ID" };
+        var actionOpt = new Option<string?>("--action") { Description = "Action scope filter" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand related entities" };
+        var statusOpt = new Option<string?>("--status") { Description = "Project status filter" };
+        var propertiesOpt = new Option<string?>("--properties") { Description = "Comma-separated project properties" };
+        var propertyQueryOpt = new Option<string?>("--property-query") { Description = "Property query string" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(startAtOpt);
         list.AddOption(maxResultsOpt);
         list.AddOption(orderByOpt);
@@ -201,9 +201,9 @@ public static class ProjectCommands
     private static Command BuildComponentListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all components for a project");
-        var projectOpt = new Option<string>("--project", "Project key") { IsRequired = true };
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var projectOpt = new Option<string>("--project") { Description = "Project key", Required = true };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(projectOpt);
         list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
@@ -235,6 +235,8 @@ public static class ProjectCommands
         return list;
     }
 }
+
+
 
 
 

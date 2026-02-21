@@ -21,17 +21,17 @@ public static class OutputOptionBinding
 
     public static void AddGlobalOptions(Command command)
     {
-        command.AddGlobalOption(new Option<string>(FormatAlias, () => "json", "Output format: json|jsonl|text."));
-        command.AddGlobalOption(new Option<bool>(PlainAlias, "Render scalar data as plain text."));
-        command.AddGlobalOption(new Option<bool>(PrettyAlias, "Pretty-print JSON output."));
-        command.AddGlobalOption(new Option<bool>(CompactAlias, "Compact/minified JSON output."));
-        command.AddGlobalOption(new Option<string?>(SelectAlias, "Select fields to project (comma-separated paths)."));
-        command.AddGlobalOption(new Option<string?>(FilterAlias, "Filter expression (for example, field=value)."));
-        command.AddGlobalOption(new Option<string?>(SortAlias, "Sort expression (for example, field:asc or field:desc)."));
-        command.AddGlobalOption(new Option<int?>(LimitAlias, "Limit output items."));
-        command.AddGlobalOption(new Option<string?>(CursorAlias, "Output cursor token."));
-        command.AddGlobalOption(new Option<int?>(PageAlias, "Output page number."));
-        command.AddGlobalOption(new Option<bool>(AllAlias, "Emit all pages/items when supported."));
+        command.AddGlobalOption(new Option<string>(FormatAlias) { DefaultValueFactory = _ => "json", Description = "Output format: json|jsonl|text." });
+        command.AddGlobalOption(new Option<bool>(PlainAlias) { Description = "Render scalar data as plain text." });
+        command.AddGlobalOption(new Option<bool>(PrettyAlias) { Description = "Pretty-print JSON output." });
+        command.AddGlobalOption(new Option<bool>(CompactAlias) { Description = "Compact/minified JSON output." });
+        command.AddGlobalOption(new Option<string?>(SelectAlias) { Description = "Select fields to project (comma-separated paths)." });
+        command.AddGlobalOption(new Option<string?>(FilterAlias) { Description = "Filter expression (for example, field=value)." });
+        command.AddGlobalOption(new Option<string?>(SortAlias) { Description = "Sort expression (for example, field:asc or field:desc)." });
+        command.AddGlobalOption(new Option<int?>(LimitAlias) { Description = "Limit output items." });
+        command.AddGlobalOption(new Option<string?>(CursorAlias) { Description = "Output cursor token." });
+        command.AddGlobalOption(new Option<int?>(PageAlias) { Description = "Output page number." });
+        command.AddGlobalOption(new Option<bool>(AllAlias) { Description = "Emit all pages/items when supported." });
     }
 
     public static bool TryResolve(ParseResult parseResult, out OutputPreferences preferences, out string error)
@@ -115,44 +115,31 @@ public static class OutputOptionBinding
 
     private static bool GetBoolOption(ParseResult parseResult, string alias)
     {
-        var result = FindOption(parseResult.CommandResult, alias);
+        var result = FindOption(parseResult, alias);
         return result?.GetValueOrDefault<bool>() ?? false;
     }
 
-    private static OptionResult? FindOption(SymbolResult symbolResult, string alias)
+    private static OptionResult? FindOption(ParseResult parseResult, string alias)
     {
-        foreach (var child in symbolResult.Children)
-        {
-            if (child is OptionResult optionResult && optionResult.Option.HasAlias(alias))
-            {
-                return optionResult;
-            }
-
-            var nested = FindOption(child, alias);
-            if (nested is not null)
-            {
-                return nested;
-            }
-        }
-
-        return null;
+        return parseResult.GetResult(alias) as OptionResult;
     }
 
     private static string? GetStringOption(ParseResult parseResult, string alias)
     {
-        var result = FindOption(parseResult.CommandResult, alias);
+        var result = FindOption(parseResult, alias);
         return result?.GetValueOrDefault<string?>();
     }
 
     private static int? GetIntOption(ParseResult parseResult, string alias)
     {
-        var result = FindOption(parseResult.CommandResult, alias);
+        var result = FindOption(parseResult, alias);
         return result?.GetValueOrDefault<int?>();
     }
 
     private static bool IsOptionSpecified(ParseResult parseResult, string alias)
     {
-        var result = FindOption(parseResult.CommandResult, alias);
+        var result = FindOption(parseResult, alias);
         return result is not null && result.Tokens.Count > 0;
     }
 }
+

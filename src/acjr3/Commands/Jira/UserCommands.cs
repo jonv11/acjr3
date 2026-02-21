@@ -16,14 +16,14 @@ public static class UserCommands
     private static Command BuildSearchCommand(IServiceProvider services)
     {
         var search = new Command("search", "Search for users by name or email");
-        var queryOpt = new Option<string?>("--query", "Search text (name or email)");
-        var usernameOpt = new Option<string?>("--username", "Legacy username search value");
-        var accountIdOpt = new Option<string?>("--account-id", "User accountId");
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of users to return");
-        var propertyOpt = new Option<string?>("--property", "User property query");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var queryOpt = new Option<string?>("--query") { Description = "Search text (name or email)" };
+        var usernameOpt = new Option<string?>("--username") { Description = "Legacy username search value" };
+        var accountIdOpt = new Option<string?>("--account-id") { Description = "User accountId" };
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of users to return" };
+        var propertyOpt = new Option<string?>("--property") { Description = "User property query" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         search.AddOption(queryOpt);
         search.AddOption(usernameOpt);
         search.AddOption(accountIdOpt);
@@ -93,6 +93,7 @@ public static class UserCommands
         return search;
     }
 }
+
 
 
 

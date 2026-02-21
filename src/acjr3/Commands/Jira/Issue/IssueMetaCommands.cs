@@ -13,13 +13,13 @@ public static partial class IssueCommands
     private static Command BuildCreateMetaCommand(IServiceProvider services)
     {
         var createMeta = new Command("createmeta", "Get issue create metadata");
-        var projectIdsOpt = new Option<string?>("--project-ids", "Comma-separated project IDs");
-        var projectKeysOpt = new Option<string?>("--project-keys", "Comma-separated project keys");
-        var issueTypeIdsOpt = new Option<string?>("--issuetype-ids", "Comma-separated issue type IDs");
-        var issueTypeNamesOpt = new Option<string?>("--issuetype-names", "Comma-separated issue type names");
-        var expandOpt = new Option<string?>("--expand", "Expand create metadata fields");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var projectIdsOpt = new Option<string?>("--project-ids") { Description = "Comma-separated project IDs" };
+        var projectKeysOpt = new Option<string?>("--project-keys") { Description = "Comma-separated project keys" };
+        var issueTypeIdsOpt = new Option<string?>("--issuetype-ids") { Description = "Comma-separated issue type IDs" };
+        var issueTypeNamesOpt = new Option<string?>("--issuetype-names") { Description = "Comma-separated issue type names" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand create metadata fields" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         createMeta.AddOption(projectIdsOpt);
         createMeta.AddOption(projectKeysOpt);
@@ -68,11 +68,11 @@ public static partial class IssueCommands
     private static Command BuildEditMetaCommand(IServiceProvider services)
     {
         var editMeta = new Command("editmeta", "Get issue edit metadata");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
-        var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security", "Override screen security (true|false)");
-        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag", "Override editable flag (true|false)");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
+        var overrideScreenSecurityOpt = new Option<string?>("--override-screen-security") { Description = "Override screen security (true|false)" };
+        var overrideEditableFlagOpt = new Option<string?>("--override-editable-flag") { Description = "Override editable flag (true|false)" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
 
         editMeta.AddArgument(keyArg);
         editMeta.AddOption(overrideScreenSecurityOpt);
@@ -121,5 +121,7 @@ public static partial class IssueCommands
     }
 
 }
+
+
 
 

@@ -12,8 +12,8 @@ public static class OpenApiCommandBuilder
         var openapi = new Command("openapi", "OpenAPI discovery commands");
 
         var fetch = new Command("fetch", "Fetch Jira Cloud REST OpenAPI spec to cache or output file");
-        var fetchOut = new Option<string?>("--out", "Output file path. Defaults to local cache path.");
-        var fetchSpecUrl = new Option<string?>("--spec-url", "Optional explicit OpenAPI URL.");
+        var fetchOut = new Option<string?>("--out") { Description = "Output file path. Defaults to local cache path." };
+        var fetchSpecUrl = new Option<string?>("--spec-url") { Description = "Optional explicit OpenAPI URL." };
         fetch.AddOption(fetchOut);
         fetch.AddOption(fetchSpecUrl);
         fetch.SetHandler(async (InvocationContext context) =>
@@ -38,8 +38,8 @@ public static class OpenApiCommandBuilder
         });
 
         var paths = new Command("paths", "List paths and methods from cached or provided OpenAPI spec");
-        var pathFilterOpt = new Option<string?>("--path-filter", "Filter text for path/method/operationId.");
-        var specFileOpt = new Option<string?>("--spec-file", "Use local OpenAPI spec file instead of cache");
+        var pathFilterOpt = new Option<string?>("--path-filter") { Description = "Filter text for path/method/operationId." };
+        var specFileOpt = new Option<string?>("--spec-file") { Description = "Use local OpenAPI spec file instead of cache" };
         paths.AddOption(pathFilterOpt);
         paths.AddOption(specFileOpt);
         paths.SetHandler((InvocationContext context) =>
@@ -63,9 +63,9 @@ public static class OpenApiCommandBuilder
         });
 
         var show = new Command("show", "Show method/path details from OpenAPI spec");
-        var methodArg = new Argument<string>("method", "HTTP method");
-        var pathArg = new Argument<string>("path", "OpenAPI path");
-        var showSpecFileOpt = new Option<string?>("--spec-file", "Use local OpenAPI spec file instead of cache");
+        var methodArg = new Argument<string>("method") { Description = "HTTP method" };
+        var pathArg = new Argument<string>("path") { Description = "OpenAPI path" };
+        var showSpecFileOpt = new Option<string?>("--spec-file") { Description = "Use local OpenAPI spec file instead of cache" };
         show.AddArgument(methodArg);
         show.AddArgument(pathArg);
         show.AddOption(showSpecFileOpt);
@@ -97,3 +97,4 @@ public static class OpenApiCommandBuilder
         return openapi;
     }
 }
+

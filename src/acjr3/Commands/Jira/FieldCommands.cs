@@ -17,8 +17,8 @@ public static class FieldCommands
     private static Command BuildListCommand(IServiceProvider services)
     {
         var list = new Command("list", "List all Jira fields");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         list.AddOption(allowNonSuccessOpt);
         list.AddOption(verboseOpt);
         list.SetHandler(async (InvocationContext context) =>
@@ -52,16 +52,16 @@ public static class FieldCommands
     private static Command BuildSearchCommand(IServiceProvider services)
     {
         var search = new Command("search", "Search Jira fields");
-        var startAtOpt = new Option<int?>("--start-at", "Pagination start index");
-        var maxResultsOpt = new Option<int?>("--max-results", "Maximum number of fields to return");
-        var typeOpt = new Option<string?>("--type", "Field type filter");
-        var idOpt = new Option<string?>("--id", "Comma-separated field IDs");
-        var queryOpt = new Option<string?>("--query", "Field search text");
-        var orderByOpt = new Option<string?>("--order-by", "Order by expression");
-        var expandOpt = new Option<string?>("--expand", "Expand related entities");
-        var projectIdsOpt = new Option<string?>("--project-ids", "Comma-separated project IDs for project-scoped field search");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
+        var startAtOpt = new Option<int?>("--start-at") { Description = "Pagination start index" };
+        var maxResultsOpt = new Option<int?>("--max-results") { Description = "Maximum number of fields to return" };
+        var typeOpt = new Option<string?>("--type") { Description = "Field type filter" };
+        var idOpt = new Option<string?>("--id") { Description = "Comma-separated field IDs" };
+        var queryOpt = new Option<string?>("--query") { Description = "Field search text" };
+        var orderByOpt = new Option<string?>("--order-by") { Description = "Order by expression" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand related entities" };
+        var projectIdsOpt = new Option<string?>("--project-ids") { Description = "Comma-separated project IDs for project-scoped field search" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
         search.AddOption(startAtOpt);
         search.AddOption(maxResultsOpt);
         search.AddOption(typeOpt);
@@ -126,6 +126,7 @@ public static class FieldCommands
         return search;
     }
 }
+
 
 
 

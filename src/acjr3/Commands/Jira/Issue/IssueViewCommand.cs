@@ -13,17 +13,17 @@ public static partial class IssueCommands
     private static Command BuildViewCommand(IServiceProvider services)
     {
         var view = new Command("view", "Show details for a specific issue");
-        var keyArg = new Argument<string>("key", "Issue key (for example, TEST-123)") { Arity = ArgumentArity.ExactlyOne };
+        var keyArg = new Argument<string>("key") { Description = "Issue key (for example, TEST-123)", Arity = ArgumentArity.ExactlyOne };
         view.AddArgument(keyArg);
-        var verboseOpt = new Option<bool>("--verbose", "Enable verbose diagnostics logging");
-        var fieldsOpt = new Option<string?>("--fields", "Comma-separated list of fields to include in the response (for example, summary,description).");
-        var extractOpt = new Option<string?>("--extract", "Extract and return only one issue field value as JSON (fields.<fieldName>).");
-        var fieldsByKeysOpt = new Option<string?>("--fields-by-keys", "Interpret fields in --fields by key (true|false)");
-        var expandOpt = new Option<string?>("--expand", "Expand issue response entities");
-        var propertiesOpt = new Option<string?>("--properties", "Comma-separated issue properties to include");
-        var updateHistoryOpt = new Option<string?>("--update-history", "Update issue view history (true|false)");
-        var failFastOpt = new Option<string?>("--fail-fast", "Fail fast on invalid request details (true|false)");
-        var allowNonSuccessOpt = new Option<bool>("--allow-non-success", "Allow 4xx/5xx responses without forcing a non-zero exit");
+        var verboseOpt = new Option<bool>("--verbose") { Description = "Enable verbose diagnostics logging" };
+        var fieldsOpt = new Option<string?>("--fields") { Description = "Comma-separated list of fields to include in the response (for example, summary,description)." };
+        var extractOpt = new Option<string?>("--extract") { Description = "Extract and return only one issue field value as JSON (fields.<fieldName>)." };
+        var fieldsByKeysOpt = new Option<string?>("--fields-by-keys") { Description = "Interpret fields in --fields by key (true|false)" };
+        var expandOpt = new Option<string?>("--expand") { Description = "Expand issue response entities" };
+        var propertiesOpt = new Option<string?>("--properties") { Description = "Comma-separated issue properties to include" };
+        var updateHistoryOpt = new Option<string?>("--update-history") { Description = "Update issue view history (true|false)" };
+        var failFastOpt = new Option<string?>("--fail-fast") { Description = "Fail fast on invalid request details (true|false)" };
+        var allowNonSuccessOpt = new Option<bool>("--allow-non-success") { Description = "Allow 4xx/5xx responses without forcing a non-zero exit" };
         view.AddOption(verboseOpt);
         view.AddOption(fieldsOpt);
         view.AddOption(extractOpt);
@@ -106,5 +106,7 @@ public static partial class IssueCommands
         return view;
     }
 }
+
+
 
 
